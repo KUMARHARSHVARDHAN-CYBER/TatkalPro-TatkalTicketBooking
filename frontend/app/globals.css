@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+  }
+}
+
+/* Custom Scrollbar for Class Cards */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 5px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #071224;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
