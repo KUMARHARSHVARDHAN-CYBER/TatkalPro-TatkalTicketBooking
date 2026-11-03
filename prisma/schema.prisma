@@ -1,0 +1,180 @@
+// Prisma schema for High-Concurrency Tatkal Train Ticket Booking Application
+// Handles massive read/write spikes at 10:00 AM with PostgreSQL persistence
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  CONFIRMED
+  WAITLISTED
+  CANCELLED
+  FAILED
+}
+
+enum TravelClass {
+  ONE_A    // 1st AC
+  TWO_A    // 2nd AC
+  THREE_A  // 3rd AC
+  SL       // Sleeper
+  CC       // AC Chair Car
+  EC       // Executive Chair Car
+}
+
+enum QuotaType {
+  TATKAL
+  PREMIUM_TATKAL
+  GENERAL
+  LADIES
+}
+
+// Station: Railway stations across the network
+model Station {
+  id                  String    @id @default(uuid())
+  code                String    @unique // e.g., "NDLS", "MMCT", "BPL", "CNB"
+  name                String    // e.g., "New Delhi", "Mumbai Central"
+  city                String    // e.g., "Delhi", "Mumbai"
+  state               String?
+  latitude            Float?
+  longitude           Float?
+
+  // Relations
+  routes              Route[]
+  originBookings      Booking[] @relation("OriginStation")
+  destinationBookings Booking[] @relation("DestinationStation")
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("stations")
+}
+
+// Train: Train metadata and service definition
+model Train {
+  id              String            @id @default(uuid())
+  trainNumber     String            @unique // e.g., "12952", "12004"
+  trainName       String            // e.g., "Mumbai Rajdhani Express"
+  trainType       String            @default("SUPERFAST") // RAJDHANI, SHATABDI, SUPERFAST, EXPRESS
+  isActive        Boolean           @default(true)
+
+  // Relations
+  routes          Route[]
+  seatInventories Seat_Inventory[]
+  bookings        Booking[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@map("trains")
+}
+
+// Route: Maps trains to ordered station stops with arrival & departure times
+model Route {
+  id                   String   @id @default(uuid())
+  trainId              String
+  train                Train    @relation(fields: [trainId], references: [id], onDelete: Cascade)
+  stationId            String
+  station              Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  stopSequence         Int      // Ordered stop index: 1 (origin), 2, 3 ... N (destination)
+  arrivalTime          String?  // Format: "HH:mm" (24h). Null for origin station
+  departureTime        String?  // Format: "HH:mm" (24h). Null for final destination station
+  dayOffset            Int      @default(0) // 0 for day 1, 1 for next calendar day, etc.
+  distanceFromOriginKm Int      @default(0)
+  platformNumber       Int?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([trainId, stationId])
+  @@unique([trainId, stopSequence])
+  @@index([stationId])
+  @@index([trainId])
+  @@map("routes")
+}
+
+// Seat_Inventory: Real-time quota and seat availability per train, date, class, and quota
+model Seat_Inventory {
+  id             String    @id @default(uuid())
+  trainId        String
+  train          Train     @relation(fields: [trainId], references: [id], onDelete: Cascade)
+
+  journeyDate    DateTime  @db.Date
+  travelClass    String    // e.g. "3A", "2A", "SL", "CC"
+  quota          String    @default("TATKAL") // "TATKAL", "PREMIUM_TATKAL", "GENERAL"
+
+  totalSeats     Int
+  availableSeats Int
+  bookedSeats    Int       @default(0)
+  version        Int       @default(0) // Optimistic concurrency control counter
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([trainId, journeyDate, travelClass, quota])
+  @@index([trainId, journeyDate, travelClass])
+  @@map("seat_inventory")
+}
+
+// Booking: Passenger booking records persisted after Redis atomic lock confirmation
+model Booking {
+  id               String        @id @default(uuid())
+  pnrNumber        String        @unique // 10-digit unique PNR e.g. "8203948571"
+  idempotencyKey   String        @unique // Prevents duplicate submissions at network level
+  userId           String
+
+  trainId          String
+  train            Train         @relation(fields: [trainId], references: [id])
+
+  fromStationId    String
+  fromStation      Station       @relation("OriginStation", fields: [fromStationId], references: [id])
+  toStationId      String
+  toStation        Station       @relation("DestinationStation", fields: [toStationId], references: [id])
+
+  journeyDate      DateTime      @db.Date
+  travelClass      String
+  quota            String        @default("TATKAL")
+  numberOfSeats    Int
+  status           BookingStatus @default(CONFIRMED)
+  totalFare        Decimal       @db.Decimal(10, 2)
+
+  // Split-Ticket fields
+  isSplitTicket    Boolean       @default(false)
+  splitGroupId     String?       // Group ID tying Leg 1 & Leg 2 of a split ticket together
+  splitLegNumber   Int?          // 1 or 2
+
+  passengers       Passenger[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([pnrNumber])
+  @@index([trainId, journeyDate])
+  @@map("bookings")
+}
+
+// Passenger: Passenger details allocated to a booking
+model Passenger {
+  id               String   @id @default(uuid())
+  bookingId        String
+  booking          Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  name             String
+  age              Int
+  gender           String   // "M", "F", "O"
+  berthPreference  String?  // "LOWER", "MIDDLE", "UPPER", "SIDE_LOWER", "SIDE_UPPER", "CABIN"
+  allocatedSeat    String?  // e.g. "B3-42"
+  allocatedCoach   String?  // e.g. "B3"
+
+  createdAt        DateTime @default(now())
+
+  @@index([bookingId])
+  @@map("passengers")
+}
+
