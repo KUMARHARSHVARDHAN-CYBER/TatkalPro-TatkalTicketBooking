@@ -1,4 +1,5 @@
-import express, { Application, Request, Response } from "express";
+import express, { Application, Request, Response, NextFunction } from "express";
+import path from "path";
 import bookingRoutes from "./routes/booking.routes";
 import routingRoutes from "./routes/routing.routes";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -6,9 +7,30 @@ import { errorHandler } from "./middlewares/errorHandler";
 export function createApp(): Application {
   const app = express();
 
-  // Middleware for parsing JSON with a sensible limit
+  // CORS Middleware for seamless local & deployed frontend requests
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Idempotency-Key");
+    if (req.method === "OPTIONS") {
+      res.sendStatus(200);
+      return;
+    }
+    next();
+  });
+
+  // Body parser with sensible limits
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ extended: true }));
+
+  // Serve static files from public directory (Frontend UI)
+  const publicDir = path.join(process.cwd(), "public");
+  app.use(express.static(publicDir));
+
+  // Root endpoint: Serve frontend index.html
+  app.get("/", (_req: Request, res: Response) => {
+    res.sendFile(path.join(publicDir, "index.html"));
+  });
 
   // Health check endpoint
   app.get("/health", (_req: Request, res: Response) => {
@@ -23,16 +45,21 @@ export function createApp(): Application {
   app.use("/api", bookingRoutes);
   app.use("/api/routes", routingRoutes);
 
-  // Fallback 404 handler
-  app.use((_req: Request, res: Response) => {
+  // Fallback 404 handler for unmatched API routes
+  app.use("/api/*", (_req: Request, res: Response) => {
     res.status(404).json({
       success: false,
       error: {
         code: "NOT_FOUND",
-        message: "Endpoint not found.",
+        message: "API endpoint not found.",
         statusCode: 404,
       },
     });
+  });
+
+  // Fallback for any other route: serve index.html (SPA support)
+  app.get("*", (_req: Request, res: Response) => {
+    res.sendFile(path.join(publicDir, "index.html"));
   });
 
   // Centralized Error Handling Middleware (Production-Grade)
@@ -42,4 +69,3 @@ export function createApp(): Application {
 }
 
 export default createApp();
-

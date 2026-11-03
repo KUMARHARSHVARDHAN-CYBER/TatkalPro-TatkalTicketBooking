@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tatkal Express — High-Concurrency Train Booking & Split-Routing</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            irctc: {
+              blue: '#0d3b66',
+              lightBlue: '#1e6091',
+              orange: '#f4a261',
+              accent: '#e76f51',
+              dark: '#0a192f',
+              surface: '#112240',
+              border: '#233554'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#070d19] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-orange-500 selection:text-white">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="border-b border-slate-800 bg-[#0d1627]/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold tracking-tight text-white">TATKAL<span class="text-orange-400">ENGINE</span></h1>
+            <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full">v1.0 MVP</span>
+          </div>
+          <p class="text-xs text-slate-400">High-Concurrency 10:00 AM Redis Reservation Engine</p>
+        </div>
+      </div>
+
+      <!-- Tatkal Rush Clock & Inventory Status -->
+      <div class="flex items-center gap-4">
+        <!-- Live Clock -->
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span class="text-xs font-mono text-slate-300">RUSH TIME: <span id="tatkalClock" class="font-bold text-emerald-400 font-mono">10:00:00 AM</span></span>
+        </div>
+
+        <!-- Inventory Pill -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-orange-500/30">
+          <span class="text-xs text-slate-400">Tatkal Quota:</span>
+          <span id="liveInventoryBadge" class="font-mono text-sm font-bold text-amber-400">20 seats</span>
+          <button id="btnRefreshInventory" title="Refresh Live Seats" class="text-slate-400 hover:text-white transition p-0.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          </button>
+        </div>
+
+        <!-- Reset Button -->
+        <button id="btnSeedQuota" class="px-3 py-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-xs font-medium transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+          Reset to 20
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full flex flex-col gap-8">
+
+    <!-- SUB-NAV TABS -->
+    <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+      <button id="tabBtnBooking" class="tab-btn active px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition bg-orange-500 text-white shadow-lg shadow-orange-500/20">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>
+        Instant Tatkal Booking
+      </button>
+
+      <button id="tabBtnSplit" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition bg-slate-800/80 hover:bg-slate-800 text-slate-300">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+        Split-Ticket Graph Routing
+      </button>
+
+      <button id="tabBtnLoadTest" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition bg-slate-800/80 hover:bg-slate-800 text-slate-300">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        Live Concurrency Stress Tester
+      </button>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- SECTION 1: INSTANT TATKAL BOOKING -->
+    <!-- ================================================================= -->
+    <section id="sectionBooking" class="tab-content flex flex-col gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Left Column: Booking Form -->
+        <div class="lg:col-span-7 bg-[#0d1627] border border-slate-800/90 rounded-2xl p-6 shadow-xl flex flex-col gap-6">
+          <div>
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                Tatkal Ticket Reservation
+              </h2>
+              <span class="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-md">Max 4 Passengers</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Direct atomic inventory reservation backed by single-threaded Redis Lua scripts.</p>
+          </div>
+
+          <form id="bookingForm" class="flex flex-col gap-5">
+            <!-- Train, Date & Class Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1.5">Train Number</label>
+                <select id="inputTrainId" class="w-full bg-[#131f37] border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono">
+                  <option value="12952">12952 - Mumbai Rajdhani</option>
+                  <option value="12954">12954 - August Kranti Tejas</option>
+                  <option value="12004">12004 - Lucknow Shatabdi</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1.5">Journey Date</label>
+                <input type="date" id="inputJourneyDate" value="2026-11-10" class="w-full bg-[#131f37] border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1.5">Travel Class</label>
+                <select id="inputTravelClass" class="w-full bg-[#131f37] border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+                  <option value="3A">AC 3-Tier (3A)</option>
+                  <option value="2A">AC 2-Tier (2A)</option>
+                  <option value="1A">AC 1st Class (1A)</option>
+                  <option value="SL">Sleeper (SL)</option>
+                  <option value="CC">AC Chair Car (CC)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Stations Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1.5">From Station</label>
+                <input type="text" id="inputFromStation" value="NDLS" maxlength="5" class="w-full uppercase bg-[#131f37] border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono tracking-wider" placeholder="NDLS" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1.5">To Station</label>
+                <input type="text" id="inputToStation" value="MMCT" maxlength="5" class="w-full uppercase bg-[#131f37] border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono tracking-wider" placeholder="MMCT" />
+              </div>
+            </div>
+
+            <!-- Passengers Section -->
+            <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Passenger Details</span>
+                <button type="button" id="btnAddPassenger" class="text-xs font-medium text-orange-400 hover:text-orange-300 transition flex items-center gap-1">
+                  + Add Passenger
+                </button>
+              </div>
+
+              <div id="passengersContainer" class="flex flex-col gap-2.5">
+                <!-- Passenger Row 1 -->
+                <div class="passenger-row grid grid-cols-12 gap-2.5 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                  <div class="col-span-5">
+                    <input type="text" required placeholder="Passenger Full Name" value="Rahul Sharma" class="p-name w-full bg-[#131f37] border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500" />
+                  </div>
+                  <div class="col-span-2">
+                    <input type="number" required min="1" max="120" value="29" placeholder="Age" class="p-age w-full bg-[#131f37] border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white text-center" />
+                  </div>
+                  <div class="col-span-2">
+                    <select class="p-gender w-full bg-[#131f37] border border-slate-700 rounded-lg px-1.5 py-1.5 text-xs text-white">
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                      <option value="O">Other</option>
+                    </select>
+                  </div>
+                  <div class="col-span-3">
+                    <select class="p-berth w-full bg-[#131f37] border border-slate-700 rounded-lg px-1.5 py-1.5 text-xs text-white">
+                      <option value="LOWER">Lower</option>
+                      <option value="MIDDLE">Middle</option>
+                      <option value="UPPER">Upper</option>
+                      <option value="SIDE_LOWER">Side Lower</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="btnBookTicket" class="w-full mt-2 py-3.5 px-4 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition active:scale-[0.99] flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span>CONFIRM BOOKING (POST /api/book)</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Right Column: Live Booking Status / PNR Card -->
+        <div class="lg:col-span-5 flex flex-col gap-6">
+          <!-- Live Result Card -->
+          <div id="bookingResultPlaceholder" class="bg-[#0d1627] border border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-3 min-h-[340px]">
+            <div class="h-16 w-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>
+            </div>
+            <h3 class="text-sm font-semibold text-slate-300">Ready for Instant Booking</h3>
+            <p class="text-xs text-slate-500 max-w-xs">Fill out the passenger details and click Confirm. Your atomic reservation ticket and PNR will appear here in real time.</p>
+          </div>
+
+          <!-- Dynamic PNR Card (Hidden until booking) -->
+          <div id="pnrCard" class="hidden bg-gradient-to-b from-[#101d36] to-[#0d1627] border border-emerald-500/40 rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">CONFIRMED (HTTP 201)</span>
+                <h4 id="cardPnrNumber" class="text-2xl font-mono font-extrabold text-white tracking-widest mt-1">8203948571</h4>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] text-slate-400 uppercase">Quota Remaining</span>
+                <p id="cardRemainingQuota" class="text-sm font-bold text-amber-400 font-mono">19 seats</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span class="text-slate-400">Train:</span>
+                <p id="cardTrain" class="font-semibold text-white">12952 - Mumbai Rajdhani</p>
+              </div>
+              <div>
+                <span class="text-slate-400">Route:</span>
+                <p id="cardRoute" class="font-semibold text-white">NDLS ➔ MMCT</p>
+              </div>
+              <div>
+                <span class="text-slate-400">Date:</span>
+                <p id="cardDate" class="font-semibold text-white">2026-11-10</p>
+              </div>
+              <div>
+                <span class="text-slate-400">Class:</span>
+                <p id="cardClass" class="font-semibold text-white">3A (TATKAL)</p>
+              </div>
+            </div>
+
+            <!-- Allocated Passengers -->
+            <div class="border-t border-slate-700/60 pt-3">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Allocated Coach & Berths</span>
+              <div id="cardPassengersList" class="flex flex-col gap-1.5 mt-2">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Alert Banner (Hidden until 409/503) -->
+          <div id="bookingErrorBanner" class="hidden bg-rose-500/10 border border-rose-500/40 rounded-2xl p-5 flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+              <span id="errorStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500 text-white">409 CONFLICT</span>
+              <h4 id="errorTitle" class="text-sm font-bold text-rose-300">Tatkal Quota Exhausted</h4>
+            </div>
+            <p id="errorMessage" class="text-xs text-rose-200">No seats remaining for this quota. Split routing is recommended.</p>
+            <button id="btnSwitchToSplit" class="mt-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 py-1.5 px-3 rounded-lg w-max transition">
+              Find Split-Ticket Alternative ➔
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SECTION 2: SPLIT-TICKET GRAPH ROUTING -->
+    <!-- ================================================================= -->
+    <section id="sectionSplit" class="tab-content hidden flex flex-col gap-6">
+      <div class="bg-[#0d1627] border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col gap-6">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            Smart "Split-Ticket" Routing Algorithm
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">
+            When direct trains are 100% full or waitlisted, our graph algorithm explores intermediate station stops using Dijkstra's algorithm to locate 2-leg confirmed journeys.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Source Station</label>
+            <input type="text" id="splitFrom" value="NDLS" class="w-full uppercase bg-[#131f37] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Destination Station</label>
+            <input type="text" id="splitTo" value="MMCT" class="w-full uppercase bg-[#131f37] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Min Layover Buffer</label>
+            <select id="splitLayover" class="w-full bg-[#131f37] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+              <option value="30">30 minutes</option>
+              <option value="45">45 minutes</option>
+              <option value="60">1 hour</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button id="btnSearchSplit" class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition flex items-center justify-center gap-2 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              Search Alternatives
+            </button>
+          </div>
+        </div>
+
+        <!-- Split Results Container -->
+        <div id="splitResultsContainer" class="flex flex-col gap-4 mt-2">
+          <!-- Results injected via JS -->
+          <div class="p-8 text-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-xl">
+            Click "Search Alternatives" to evaluate railway network connections for NDLS ➔ MMCT.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SECTION 3: LIVE CONCURRENCY STRESS TESTER -->
+    <!-- ================================================================= -->
+    <section id="sectionLoadTest" class="tab-content hidden flex flex-col gap-6">
+      <div class="bg-[#0d1627] border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col gap-6">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+            10:00:00 AM Concurrency Stress Simulator
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">
+            Fires multiple simultaneous requests at the exact same millisecond using <code class="text-orange-400 font-mono">Promise.all()</code> to mathematically demonstrate that Redis atomic locks prevent overselling.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Simulated Concurrent Users:</label>
+            <div class="flex gap-2">
+              <button class="btn-load-count px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-orange-500 transition" data-count="20">20 Users</button>
+              <button class="btn-load-count px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500 text-white" data-count="50">50 Users</button>
+              <button class="btn-load-count px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-orange-500 transition" data-count="100">100 Users</button>
+            </div>
+          </div>
+
+          <div class="ml-auto">
+            <button id="btnRunStressTest" class="px-5 py-2.5 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white font-bold rounded-xl transition text-sm flex items-center gap-2 shadow-lg shadow-red-500/20">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              Fire Concurrent Rush Now!
+            </button>
+          </div>
+        </div>
+
+        <!-- Stress Test Real-Time Stats -->
+        <div id="stressStatsContainer" class="hidden grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div class="bg-[#112240] p-4 rounded-xl border border-slate-700/60">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">Total Sent</span>
+            <p id="statTotalSent" class="text-2xl font-extrabold text-white font-mono mt-1">50</p>
+          </div>
+          <div class="bg-[#112240] p-4 rounded-xl border border-emerald-500/40">
+            <span class="text-[10px] text-emerald-400 uppercase font-semibold">Confirmed (201)</span>
+            <p id="statConfirmed" class="text-2xl font-extrabold text-emerald-400 font-mono mt-1">0</p>
+          </div>
+          <div class="bg-[#112240] p-4 rounded-xl border border-rose-500/40">
+            <span class="text-[10px] text-rose-400 uppercase font-semibold">Quota Full (409)</span>
+            <p id="statRejected" class="text-2xl font-extrabold text-rose-400 font-mono mt-1">0</p>
+          </div>
+          <div class="bg-[#112240] p-4 rounded-xl border border-slate-700/60">
+            <span class="text-[10px] text-amber-400 uppercase font-semibold">Oversold Count</span>
+            <p id="statOversold" class="text-2xl font-extrabold text-amber-400 font-mono mt-1">0</p>
+          </div>
+          <div class="bg-[#112240] p-4 rounded-xl border border-slate-700/60">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">Total Duration</span>
+            <p id="statDuration" class="text-2xl font-extrabold text-white font-mono mt-1">-- ms</p>
+          </div>
+        </div>
+
+        <!-- Log Output -->
+        <div id="stressLogBox" class="hidden bg-[#050b14] border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 max-h-60 overflow-y-auto flex flex-col gap-1">
+          <!-- Log entries injected via JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800/80 bg-[#070d19] py-4 text-center text-xs text-slate-500">
+    <p>Tatkal High-Concurrency Booking Engine MVP • Express • Redis • PostgreSQL (Prisma) • Dijkstra Split Routing</p>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
