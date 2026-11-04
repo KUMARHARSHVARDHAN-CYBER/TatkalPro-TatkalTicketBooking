@@ -28,3 +28,8 @@ Thumbs.db
 # Prisma artifacts (keep schema, exclude generated binaries/engines if local)
 prisma/*.db
 prisma/*.db-journal
+
+# Next.js build artifacts
+.next/
+*/.next/
+out/

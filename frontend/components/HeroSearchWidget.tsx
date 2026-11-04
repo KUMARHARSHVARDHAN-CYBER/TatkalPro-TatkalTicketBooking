@@ -82,7 +82,7 @@ export const HeroSearchWidget: React.FC<HeroSearchWidgetProps> = ({
         <div
           className="w-full h-full bg-cover bg-center filter brightness-[0.35] scale-105 transition-transform duration-1000"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2000&q=80')`,
+            backgroundImage: `url('https://blog-content.ixigo.com/wp-content/uploads/2023/03/Vande-Bharat-1-2.jpeg')`,
           }}
         />
         {/* Layered Gradient Overlays for High Legibility */}
@@ -135,10 +135,10 @@ export const HeroSearchWidget: React.FC<HeroSearchWidgetProps> = ({
             <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 rounded-2xl border border-slate-800">
               {(
                 [
-                  { id: "GENERAL", label: "General Quota" },
+                  { id: "GENERAL", label: "General Quota", isHot: false },
                   { id: "TATKAL", label: "⚡ Tatkal (10 AM)", isHot: true },
-                  { id: "PREMIUM_TATKAL", label: "Premium Tatkal" },
-                  { id: "LADIES", label: "Ladies" },
+                  { id: "PREMIUM_TATKAL", label: "Premium Tatkal", isHot: false },
+                  { id: "LADIES", label: "Ladies", isHot: false },
                 ] as const
               ).map((tab) => (
                 <button

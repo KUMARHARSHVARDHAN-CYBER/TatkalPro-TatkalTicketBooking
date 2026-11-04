@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  # Next.js Fullstack PWA (App Router + Adapter Layer)
+  tatkalpro-app:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tatkalpro_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://tatkalpro-redis:6379
+      - DATABASE_URL=postgresql://tatkal_user:tatkal_secret@tatkalpro-postgres:5432/tatkalpro_db
+      - NEXT_PUBLIC_BASE_URL=http://localhost:3000
+    depends_on:
+      tatkalpro-redis:
+        condition: service_healthy
+      tatkalpro-postgres:
+        condition: service_healthy
+    networks:
+      - tatkal_net
+
+  # High-Speed Redis for 10:00 AM Tatkal Atomic Locking & Seat Holds
+  tatkalpro-redis:
+    image: redis:7-alpine
+    container_name: tatkalpro_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - tatkal_net
+
+  # PostgreSQL Relational Storage for Schedules & Confirmed Bookings
+  tatkalpro-postgres:
+    image: postgres:16-alpine
+    container_name: tatkalpro_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: tatkal_user
+      POSTGRES_PASSWORD: tatkal_secret
+      POSTGRES_DB: tatkalpro_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tatkal_user -d tatkalpro_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - tatkal_net
+
+volumes:
+  redis_data:
+  pg_data:
+
+networks:
+  tatkal_net:
+    driver: bridge
