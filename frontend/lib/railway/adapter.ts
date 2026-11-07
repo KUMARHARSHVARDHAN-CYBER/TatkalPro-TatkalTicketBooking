@@ -56,6 +56,343 @@ const activeHolds = new Map<string, SeatHold>();
 const confirmedBookings = new Map<string, BookingRecord>();
 
 /**
+ * Generates fallback Express and Passenger trains for any route,
+ * ensuring no route is ever empty and every route has at least 1-2 trains
+ * with classes in serial order: SL, 3A, 2A, First Class (1A).
+ */
+function generateFallbackTrains(srcStation: Station, dstStation: Station): TrainSchedule[] {
+  const seed = (srcStation.code + dstStation.code)
+    .split("")
+    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+  const baseKm = 240 + (seed % 950);
+  const expHours = Math.max(3, Math.round(baseKm / 60));
+  const expMins = (seed * 7) % 60;
+  const pasHours = Math.round(expHours * 1.35);
+
+  const expArrHour = (7 + expHours) % 24;
+  const pasArrHour = (17 + pasHours) % 24;
+
+  const expressTrain: TrainSchedule = {
+    id: `train-exp-${srcStation.code}-${dstStation.code}`,
+    trainNumber: `12${(seed % 700 + 100)}`,
+    trainName: `${srcStation.name} - ${dstStation.name} Express`,
+    trainNameHindi: `${srcStation.nameHindi || srcStation.name} - ${dstStation.nameHindi || dstStation.name} एक्सप्रेस`,
+    trainType: "EXPRESS",
+    fromStation: srcStation,
+    toStation: dstStation,
+    departureTime: "07:15",
+    arrivalTime: `${expArrHour.toString().padStart(2, "0")}:${((15 + expMins) % 60).toString().padStart(2, "0")}`,
+    duration: `${expHours.toString().padStart(2, "0")}h ${expMins.toString().padStart(2, "0")}m`,
+    durationMinutes: expHours * 60 + expMins,
+    dayOffset: Math.floor((7 + expHours) / 24),
+    distanceKm: baseKm,
+    runningDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    hasPantry: true,
+    onTimePercentage: 94 + (seed % 5),
+    stops: [
+      {
+        stationCode: srcStation.code,
+        stationName: srcStation.name,
+        stationNameHindi: srcStation.nameHindi || srcStation.name,
+        stopSequence: 1,
+        arrivalTime: null,
+        departureTime: "07:15",
+        dayOffset: 0,
+        distanceKm: 0,
+        platform: 1,
+      },
+      {
+        stationCode: dstStation.code,
+        stationName: dstStation.name,
+        stationNameHindi: dstStation.nameHindi || dstStation.name,
+        stopSequence: 2,
+        arrivalTime: `${expArrHour.toString().padStart(2, "0")}:${((15 + expMins) % 60).toString().padStart(2, "0")}`,
+        departureTime: null,
+        dayOffset: Math.floor((7 + expHours) / 24),
+        distanceKm: baseKm,
+        platform: 2,
+      },
+    ],
+    classes: {
+      GENERAL: [
+        {
+          classCode: "SL",
+          className: "Sleeper Class",
+          classNameHindi: "शयनयान श्रेणी",
+          baseFare: Math.round(baseKm * 0.42),
+          tatkalCharge: 0,
+          superfastCharge: 30,
+          gstAmount: 0,
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 0.42) + 45,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 58",
+          availableSeats: 58,
+          updatedAt: "Just now",
+        },
+        {
+          classCode: "3A",
+          className: "AC 3-Tier",
+          classNameHindi: "वातानुकूलित 3 टियर",
+          baseFare: Math.round(baseKm * 1.15),
+          tatkalCharge: 0,
+          superfastCharge: 45,
+          gstAmount: Math.round((Math.round(baseKm * 1.15) + 45) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 1.15) + 45 + Math.round((Math.round(baseKm * 1.15) + 45) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 28",
+          availableSeats: 28,
+          updatedAt: "Just now",
+        },
+        {
+          classCode: "2A",
+          className: "AC 2-Tier",
+          classNameHindi: "वातानुकूलित 2 टियर",
+          baseFare: Math.round(baseKm * 1.65),
+          tatkalCharge: 0,
+          superfastCharge: 45,
+          gstAmount: Math.round((Math.round(baseKm * 1.65) + 45) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 1.65) + 45 + Math.round((Math.round(baseKm * 1.65) + 45) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 14",
+          availableSeats: 14,
+          updatedAt: "Just now",
+        },
+        {
+          classCode: "1A",
+          className: "First Class",
+          classNameHindi: "प्रथम वातानुकूलित श्रेणी",
+          baseFare: Math.round(baseKm * 2.8),
+          tatkalCharge: 0,
+          superfastCharge: 75,
+          gstAmount: Math.round((Math.round(baseKm * 2.8) + 75) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 2.8) + 75 + Math.round((Math.round(baseKm * 2.8) + 75) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 06",
+          availableSeats: 6,
+          updatedAt: "Just now",
+        },
+      ],
+      TATKAL: [
+        {
+          classCode: "SL",
+          className: "Sleeper Class",
+          classNameHindi: "शयनयान श्रेणी",
+          baseFare: Math.round(baseKm * 0.42),
+          tatkalCharge: 100,
+          superfastCharge: 30,
+          gstAmount: 0,
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 0.42) + 145,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 24",
+          availableSeats: 24,
+          updatedAt: "Tatkal Active",
+        },
+        {
+          classCode: "3A",
+          className: "AC 3-Tier",
+          classNameHindi: "वातानुकूलित 3 टियर",
+          baseFare: Math.round(baseKm * 1.15),
+          tatkalCharge: Math.round(baseKm * 1.15 * 0.25),
+          superfastCharge: 45,
+          gstAmount: Math.round((Math.round(baseKm * 1.15) + Math.round(baseKm * 1.15 * 0.25) + 45) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 1.15) + Math.round(baseKm * 1.15 * 0.25) + 45 + Math.round((Math.round(baseKm * 1.15) + Math.round(baseKm * 1.15 * 0.25) + 45) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 16",
+          availableSeats: 16,
+          updatedAt: "Tatkal Active",
+        },
+        {
+          classCode: "2A",
+          className: "AC 2-Tier",
+          classNameHindi: "वातानुकूलित 2 टियर",
+          baseFare: Math.round(baseKm * 1.65),
+          tatkalCharge: Math.round(baseKm * 1.65 * 0.25),
+          superfastCharge: 45,
+          gstAmount: Math.round((Math.round(baseKm * 1.65) + Math.round(baseKm * 1.65 * 0.25) + 45) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 1.65) + Math.round(baseKm * 1.65 * 0.25) + 45 + Math.round((Math.round(baseKm * 1.65) + Math.round(baseKm * 1.65 * 0.25) + 45) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 08",
+          availableSeats: 8,
+          updatedAt: "Tatkal Active",
+        },
+        {
+          classCode: "1A",
+          className: "First Class",
+          classNameHindi: "प्रथम श्रेणी",
+          baseFare: Math.round(baseKm * 2.8),
+          tatkalCharge: Math.round(baseKm * 2.8 * 0.25),
+          superfastCharge: 75,
+          gstAmount: Math.round((Math.round(baseKm * 2.8) + Math.round(baseKm * 2.8 * 0.25) + 75) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 2.8) + Math.round(baseKm * 2.8 * 0.25) + 75 + Math.round((Math.round(baseKm * 2.8) + Math.round(baseKm * 2.8 * 0.25) + 75) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 04",
+          availableSeats: 4,
+          updatedAt: "Tatkal Active",
+        },
+      ],
+      PREMIUM_TATKAL: [],
+      LADIES: [],
+      SENIOR_CITIZEN: [],
+      DIVYANGJAN: [],
+    },
+  };
+
+  const passengerTrain: TrainSchedule = {
+    id: `train-pas-${srcStation.code}-${dstStation.code}`,
+    trainNumber: `54${(seed % 700 + 200)}`,
+    trainName: `${srcStation.name} - ${dstStation.name} Fast Passenger`,
+    trainNameHindi: `${srcStation.nameHindi || srcStation.name} - ${dstStation.nameHindi || dstStation.name} पैसेंजर`,
+    trainType: "PASSENGER",
+    fromStation: srcStation,
+    toStation: dstStation,
+    departureTime: "17:45",
+    arrivalTime: `${pasArrHour.toString().padStart(2, "0")}:${((45 + expMins) % 60).toString().padStart(2, "0")}`,
+    duration: `${pasHours.toString().padStart(2, "0")}h ${expMins.toString().padStart(2, "0")}m`,
+    durationMinutes: pasHours * 60 + expMins,
+    dayOffset: Math.floor((17 + pasHours) / 24),
+    distanceKm: baseKm,
+    runningDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+    hasPantry: false,
+    onTimePercentage: 92,
+    stops: [
+      {
+        stationCode: srcStation.code,
+        stationName: srcStation.name,
+        stationNameHindi: srcStation.nameHindi || srcStation.name,
+        stopSequence: 1,
+        arrivalTime: null,
+        departureTime: "17:45",
+        dayOffset: 0,
+        distanceKm: 0,
+        platform: 3,
+      },
+      {
+        stationCode: dstStation.code,
+        stationName: dstStation.name,
+        stationNameHindi: dstStation.nameHindi || dstStation.name,
+        stopSequence: 2,
+        arrivalTime: `${pasArrHour.toString().padStart(2, "0")}:${((45 + expMins) % 60).toString().padStart(2, "0")}`,
+        departureTime: null,
+        dayOffset: Math.floor((17 + pasHours) / 24),
+        distanceKm: baseKm,
+        platform: 1,
+      },
+    ],
+    classes: {
+      GENERAL: [
+        {
+          classCode: "SL",
+          className: "Sleeper Class",
+          classNameHindi: "शयनयान श्रेणी",
+          baseFare: Math.round(baseKm * 0.28),
+          tatkalCharge: 0,
+          superfastCharge: 0,
+          gstAmount: 0,
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 0.28) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 95",
+          availableSeats: 95,
+          updatedAt: "Just now",
+        },
+        {
+          classCode: "3A",
+          className: "AC 3-Tier",
+          classNameHindi: "वातानुकूलित 3 टियर",
+          baseFare: Math.round(baseKm * 0.78),
+          tatkalCharge: 0,
+          superfastCharge: 0,
+          gstAmount: Math.round(Math.round(baseKm * 0.78) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 0.78) + Math.round(Math.round(baseKm * 0.78) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 42",
+          availableSeats: 42,
+          updatedAt: "Just now",
+        },
+        {
+          classCode: "2A",
+          className: "AC 2-Tier",
+          classNameHindi: "वातानुकूलित 2 टियर",
+          baseFare: Math.round(baseKm * 1.18),
+          tatkalCharge: 0,
+          superfastCharge: 0,
+          gstAmount: Math.round(Math.round(baseKm * 1.18) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 1.18) + Math.round(Math.round(baseKm * 1.18) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 18",
+          availableSeats: 18,
+          updatedAt: "Just now",
+        },
+        {
+          classCode: "1A",
+          className: "First Class",
+          classNameHindi: "प्रथम श्रेणी",
+          baseFare: Math.round(baseKm * 1.95),
+          tatkalCharge: 0,
+          superfastCharge: 0,
+          gstAmount: Math.round(Math.round(baseKm * 1.95) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 1.95) + Math.round(Math.round(baseKm * 1.95) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 06",
+          availableSeats: 6,
+          updatedAt: "Just now",
+        },
+      ],
+      TATKAL: [
+        {
+          classCode: "SL",
+          className: "Sleeper Class",
+          classNameHindi: "शयनयान श्रेणी",
+          baseFare: Math.round(baseKm * 0.28),
+          tatkalCharge: 50,
+          superfastCharge: 0,
+          gstAmount: 0,
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 0.28) + 65,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 35",
+          availableSeats: 35,
+          updatedAt: "Tatkal Active",
+        },
+        {
+          classCode: "3A",
+          className: "AC 3-Tier",
+          classNameHindi: "वातानुकूलित 3 टियर",
+          baseFare: Math.round(baseKm * 0.78),
+          tatkalCharge: Math.round(baseKm * 0.78 * 0.25),
+          superfastCharge: 0,
+          gstAmount: Math.round((Math.round(baseKm * 0.78) + Math.round(baseKm * 0.78 * 0.25)) * 0.05),
+          pgFee: 15,
+          totalFare: Math.round(baseKm * 0.78) + Math.round(baseKm * 0.78 * 0.25) + Math.round((Math.round(baseKm * 0.78) + Math.round(baseKm * 0.78 * 0.25)) * 0.05) + 15,
+          status: "AVAILABLE",
+          statusText: "AVAILABLE - 16",
+          availableSeats: 16,
+          updatedAt: "Tatkal Active",
+        },
+      ],
+      PREMIUM_TATKAL: [],
+      LADIES: [],
+      SENIOR_CITIZEN: [],
+      DIVYANGJAN: [],
+    },
+  };
+
+  return [expressTrain, passengerTrain];
+}
+
+/**
  * Production-Grade Mock Railway Adapter
  * Provides high-fidelity simulation of Indian Railways Tatkal mechanics.
  */
@@ -80,6 +417,8 @@ export class MockRailwayAdapter implements IRailwayProvider {
 
   /**
    * Searches trains running between two stations.
+   * Performs direct stop sequence matching, metropolitan terminal alias clustering,
+   * and fallback schedule generation so that EVERY route has at least 1-2 trains available.
    */
   async searchTrains(
     fromCode: string,
@@ -90,17 +429,68 @@ export class MockRailwayAdapter implements IRailwayProvider {
     const src = fromCode.trim().toUpperCase();
     const dst = toCode.trim().toUpperCase();
 
-    // Find trains that visit source before destination in their route stops
-    const matched = TRAINS.filter((train) => {
+    const srcStation = STATIONS.find((s) => s.code === src) || {
+      code: src,
+      name: src,
+      nameHindi: src,
+      city: src,
+      state: "India",
+      aliases: [src.toLowerCase()],
+    };
+
+    const dstStation = STATIONS.find((s) => s.code === dst) || {
+      code: dst,
+      name: dst,
+      nameHindi: dst,
+      city: dst,
+      state: "India",
+      aliases: [dst.toLowerCase()],
+    };
+
+    // 1. Direct route match: train visits source before destination in stops
+    let matched = TRAINS.filter((train) => {
       const srcIdx = train.stops.findIndex((s) => s.stationCode === src);
       const dstIdx = train.stops.findIndex((s) => s.stationCode === dst);
       return srcIdx !== -1 && dstIdx !== -1 && srcIdx < dstIdx;
     });
 
-    // If direct train not found, fallback to returning active trains with adjusted origin/destination
-    if (matched.length === 0) {
-      return TRAINS.filter((t) => t.classes[quota] && t.classes[quota].length > 0);
+    // 2. City-level terminal alias matching (e.g. Delhi terminals NDLS/NZM/DLI to Mumbai terminals MMCT/CSMT/BDTS)
+    if (matched.length === 0 && srcStation.city !== dstStation.city) {
+      matched = TRAINS.filter((train) => {
+        const srcIdx = train.stops.findIndex((stop) => {
+          const st = STATIONS.find((s) => s.code === stop.stationCode);
+          return st?.city === srcStation.city;
+        });
+        const dstIdx = train.stops.findIndex((stop) => {
+          const st = STATIONS.find((s) => s.code === stop.stationCode);
+          return st?.city === dstStation.city;
+        });
+        return srcIdx !== -1 && dstIdx !== -1 && srcIdx < dstIdx;
+      });
     }
+
+    // 3. Availability Engine:
+    // Ensures that EVERY route has at least 1-2 trains available (Express + Passenger),
+    // and nothing is ever empty!
+    if (matched.length === 0) {
+      const fallbacks = generateFallbackTrains(srcStation, dstStation);
+      matched = fallbacks;
+    } else if (matched.length === 1) {
+      // If only 1 train is available, add a complementary Passenger train so user has 2 options
+      const fallbacks = generateFallbackTrains(srcStation, dstStation);
+      matched = [matched[0], fallbacks[1]]; // Pair with Passenger train
+    }
+
+    // Ensure all classes on matched trains are in serial order: SL, 3A, 2A, First Class (1A)
+    const serial: Record<string, number> = { SL: 1, "3A": 2, "2A": 3, "1A": 4, CC: 5, EC: 6, "2S": 7 };
+    matched.forEach((t) => {
+      Object.keys(t.classes).forEach((qKey) => {
+        const qList = (t.classes as any)[qKey];
+        if (Array.isArray(qList)) {
+          qList.sort((a, b) => (serial[a.classCode] || 99) - (serial[b.classCode] || 99));
+        }
+      });
+    });
 
     return matched;
   }
@@ -348,69 +738,153 @@ export class MockRailwayAdapter implements IRailwayProvider {
     toCode: string,
     quota: QuotaCode = "TATKAL"
   ): Promise<SplitTicketAlternative[]> {
-    // Example: NDLS -> MMCT via Kota Junction (KOTA)
-    const intermediate = STATIONS.find((s) => s.code === "KOTA") || STATIONS[6];
+    const src = fromCode.trim().toUpperCase();
+    const dst = toCode.trim().toUpperCase();
+    const srcStation = STATIONS.find((s) => s.code === src);
+    const dstStation = STATIONS.find((s) => s.code === dst);
 
-    return [
-      {
-        intermediateStation: intermediate,
-        leg1: {
-          trainNumber: "12952",
-          trainName: "Mumbai Rajdhani Express",
-          fromCode: "NDLS",
-          toCode: "KOTA",
-          departureTime: "16:55",
-          arrivalTime: "21:30",
-          classCode: "3A",
-          availableSeats: 12,
-          fare: 1080,
+    const isDelhi = src === "NDLS" || src === "NZM" || src === "DLI" || srcStation?.city === "Delhi";
+    const isMumbai = dst === "MMCT" || dst === "CSMT" || dst === "BDTS" || dstStation?.city === "Mumbai";
+    const isKolkata = dst === "HWH" || dst === "SDAH" || dstStation?.city === "Kolkata";
+    const isBengaluru = dst === "SBC" || dst === "YPR" || dstStation?.city === "Bengaluru";
+
+    if (isDelhi && isMumbai) {
+      const intermediateKota = STATIONS.find((s) => s.code === "KOTA") || STATIONS[6];
+      const intermediateBpl = STATIONS.find((s) => s.code === "BPL") || STATIONS[7];
+
+      return [
+        {
+          intermediateStation: intermediateKota,
+          leg1: {
+            trainNumber: "12952",
+            trainName: "Mumbai Rajdhani Express",
+            fromCode: "NDLS",
+            toCode: "KOTA",
+            departureTime: "16:55",
+            arrivalTime: "21:30",
+            classCode: "3A",
+            availableSeats: 12,
+            fare: 1080,
+          },
+          leg2: {
+            trainNumber: "12954",
+            trainName: "August Kranti Tejas Rajdhani",
+            fromCode: "KOTA",
+            toCode: "MMCT",
+            departureTime: "22:55",
+            arrivalTime: "10:05",
+            classCode: "3A",
+            availableSeats: 16,
+            fare: 1580,
+          },
+          layoverMinutes: 85,
+          totalDurationMinutes: 1030,
+          totalFare: 2660,
+          summary: `Take Train 12952 from NDLS to KOTA (12 seats available), transfer platforms during a comfortable 1h 25m layover, then board Train 12954 to MMCT (16 seats available). Both legs have seats available now!`,
         },
-        leg2: {
-          trainNumber: "12954",
-          trainName: "August Kranti Tejas Rajdhani",
-          fromCode: "KOTA",
-          toCode: "MMCT",
-          departureTime: "22:55",
-          arrivalTime: "10:05",
-          classCode: "3A",
-          availableSeats: 16,
-          fare: 1580,
+        {
+          intermediateStation: intermediateBpl,
+          leg1: {
+            trainNumber: "12904",
+            trainName: "Golden Temple Mail",
+            fromCode: "NDLS",
+            toCode: "BPL",
+            departureTime: "07:20",
+            arrivalTime: "17:40",
+            classCode: "3A",
+            availableSeats: 8,
+            fare: 920,
+          },
+          leg2: {
+            trainNumber: "12138",
+            trainName: "Punjab Mail",
+            fromCode: "BPL",
+            toCode: "MMCT",
+            departureTime: "19:15",
+            arrivalTime: "07:35",
+            classCode: "3A",
+            availableSeats: 14,
+            fare: 1480,
+          },
+          layoverMinutes: 95,
+          totalDurationMinutes: 1455,
+          totalFare: 2400,
+          summary: `Take Train 12904 from NDLS to Bhopal, enjoy a 1h 35m layover, then take Train 12138 to MMCT. Confirmed seats available on both segments.`,
         },
-        layoverMinutes: 85,
-        totalDurationMinutes: 1030,
-        totalFare: 2660,
-        summary: `Take Train 12952 from NDLS to KOTA (12 seats available), transfer platforms during a comfortable 1h 25m layover, then board Train 12954 to MMCT (16 seats available). Both legs are 100% confirmed!`,
-      },
-      {
-        intermediateStation: STATIONS.find((s) => s.code === "BPL") || STATIONS[7],
-        leg1: {
-          trainNumber: "12904",
-          trainName: "Golden Temple Mail",
-          fromCode: "NDLS",
-          toCode: "BPL",
-          departureTime: "07:20",
-          arrivalTime: "17:40",
-          classCode: "3A",
-          availableSeats: 8,
-          fare: 920,
+      ];
+    }
+
+    if (isDelhi && isKolkata) {
+      const intermediateCnb = STATIONS.find((s) => s.code === "CNB") || STATIONS[15];
+      return [
+        {
+          intermediateStation: intermediateCnb,
+          leg1: {
+            trainNumber: "12004",
+            trainName: "Lucknow Swarna Shatabdi",
+            fromCode: "NDLS",
+            toCode: "CNB",
+            departureTime: "06:10",
+            arrivalTime: "11:20",
+            classCode: "CC",
+            availableSeats: 24,
+            fare: 980,
+          },
+          leg2: {
+            trainNumber: "12304",
+            trainName: "Poorva Express",
+            fromCode: "CNB",
+            toCode: "HWH",
+            departureTime: "13:00",
+            arrivalTime: "06:40",
+            classCode: "3A",
+            availableSeats: 18,
+            fare: 1420,
+          },
+          layoverMinutes: 100,
+          totalDurationMinutes: 1470,
+          totalFare: 2400,
+          summary: `Take Train 12004 from NDLS to Kanpur Central (24 seats available), enjoy 1h 40m layover, then board Poorva Express 12304 to Howrah (18 seats available). Seats available on both legs!`,
         },
-        leg2: {
-          trainNumber: "12138",
-          trainName: "Punjab Mail",
-          fromCode: "BPL",
-          toCode: "MMCT",
-          departureTime: "19:15",
-          arrivalTime: "07:35",
-          classCode: "3A",
-          availableSeats: 14,
-          fare: 1480,
+      ];
+    }
+
+    if (isDelhi && isBengaluru) {
+      const intermediateNgp = STATIONS.find((s) => s.code === "NGP") || STATIONS[20];
+      return [
+        {
+          intermediateStation: intermediateNgp,
+          leg1: {
+            trainNumber: "12616",
+            trainName: "Grand Trunk Express",
+            fromCode: "NDLS",
+            toCode: "NGP",
+            departureTime: "16:10",
+            arrivalTime: "07:20",
+            classCode: "3A",
+            availableSeats: 15,
+            fare: 1520,
+          },
+          leg2: {
+            trainNumber: "22692",
+            trainName: "Bengaluru Rajdhani Express",
+            fromCode: "NGP",
+            toCode: "SBC",
+            departureTime: "09:30",
+            arrivalTime: "05:20",
+            classCode: "3A",
+            availableSeats: 9,
+            fare: 1850,
+          },
+          layoverMinutes: 130,
+          totalDurationMinutes: 2230,
+          totalFare: 3370,
+          summary: `Take Grand Trunk Express 12616 to Nagpur (15 seats available), smooth 2h 10m platform transfer, then board Bengaluru Rajdhani 22692 to KSR Bengaluru. Confirmed travel on busy corridor!`,
         },
-        layoverMinutes: 95,
-        totalDurationMinutes: 1455,
-        totalFare: 2400,
-        summary: `Take Train 12904 from NDLS to Bhopal, enjoy a 1h 35m layover, then take Train 12138 to MMCT. Confirmed seats available on both segments.`,
-      },
-    ];
+      ];
+    }
+
+    return [];
   }
 }
 

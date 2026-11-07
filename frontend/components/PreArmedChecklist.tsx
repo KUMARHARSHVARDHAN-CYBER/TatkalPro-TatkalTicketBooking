@@ -29,14 +29,13 @@ export const PreArmedChecklist: React.FC<PreArmedChecklistProps> = ({
   onOpenPassengerMaster,
   onFastPrepare,
 }) => {
-  const [networkPing, setNetworkPing] = useState<number>(34);
-  const [tatkalOpen, setTatkalOpen] = useState(false);
-  const t = translations[lang];
+  const [networkPing, setNetworkPing] = useState<number>(32);
+  const t = translations[lang] || translations.en;
 
   useEffect(() => {
     // Benchmark mock network latency
     const interval = setInterval(() => {
-      setNetworkPing(Math.floor(25 + Math.random() * 18));
+      setNetworkPing(Math.floor(24 + Math.random() * 16));
     }, 4000);
     return () => clearInterval(interval);
   }, []);
@@ -44,108 +43,124 @@ export const PreArmedChecklist: React.FC<PreArmedChecklistProps> = ({
   const isReady = passengerCount > 0;
 
   return (
-    <div className="w-full bg-[#0a1c38]/90 border border-blue-500/30 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md">
+    <div className="w-full bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs">
       
       {/* Header with Pre-Armed Status */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/60 pb-3 mb-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-3.5">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400">
-            <Zap className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-200 text-orange-600 flex items-center justify-center font-bold">
+            <Zap className="w-4 h-4 fill-orange-500 text-orange-500" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-extrabold text-white">
-                {t.prepareBooking}
+              <h3 className="text-sm font-bold text-slate-900">
+                10:00 AM Tatkal Pre-Armed Checklist
               </h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                {isReady ? "READY FOR 10:00 AM RUSH" : "PRE-CHECK INCOMPLETE"}
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                  isReady
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}
+              >
+                {isReady ? "Pre-Armed & Ready" : "Setup Required"}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">
-              {t.prepareDesc}
+            <p className="text-xs text-slate-500 mt-0.5">
+              Arm all 4 prerequisites now so only 1-tap "Book Now" remains when the window opens.
             </p>
           </div>
         </div>
 
+        {/* 1-Tap Fast Arm Action */}
         <button
+          type="button"
           onClick={onFastPrepare}
-          className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/25 transition active:scale-95 flex items-center gap-1.5"
+          className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-md shadow-orange-500/15 flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Pre-Arm Booking Mode</span>
+          <span>1-Tap Pre-Arm Mode</span>
         </button>
       </div>
 
-      {/* 4-Item Pre-Flight Checklist Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      {/* 4-Item Interactive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         
-        {/* 1. Master Passenger List */}
+        {/* Item 1: Master Passenger List */}
         <div
           onClick={onOpenPassengerMaster}
-          className={`p-2.5 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
-            passengerCount > 0
-              ? "bg-[#112a52] border-emerald-500/40 text-emerald-300"
-              : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700"
-          }`}
+          className="bg-slate-50 hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 rounded-xl p-3 transition cursor-pointer flex items-center justify-between group"
         >
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <div className="flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-blue-400" />
-              <span>Passengers</span>
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                passengerCount > 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"
+              }`}
+            >
+              <Users className="w-4 h-4" />
             </div>
-            {passengerCount > 0 && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+            <div>
+              <span className="text-xs font-bold text-slate-800 group-hover:text-blue-700">
+                1. Passengers
+              </span>
+              <p className="text-[11px] text-slate-500">
+                {passengerCount > 0 ? `${passengerCount} Selected` : "0 Selected (Click to add)"}
+              </p>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-300 font-bold mt-1">
-            {passengerCount > 0 ? `${passengerCount} Saved Passenger(s)` : "Tap to Select"}
-          </span>
+          {passengerCount > 0 ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          ) : (
+            <span className="text-[10px] font-bold text-blue-600 underline">Add</span>
+          )}
         </div>
 
-        {/* 2. Payment Pre-Selected */}
-        <div
-          className={`p-2.5 rounded-xl border flex flex-col justify-between ${
-            paymentPreSelected
-              ? "bg-[#112a52] border-emerald-500/40 text-emerald-300"
-              : "bg-[#112a52] border-emerald-500/40 text-emerald-300"
-          }`}
-        >
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <div className="flex items-center gap-1.5">
-              <CreditCard className="w-3.5 h-3.5 text-orange-400" />
-              <span>Fast Payment</span>
+        {/* Item 2: Pre-Armed Payment Gateway */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                paymentPreSelected ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"
+              }`}
+            >
+              <CreditCard className="w-4 h-4" />
             </div>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <div>
+              <span className="text-xs font-bold text-slate-800">2. Payment Method</span>
+              <p className="text-[11px] text-slate-500">UPI Fast Collect Ready</p>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-300 font-bold mt-1">
-            Fast UPI Intent Ready
-          </span>
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
         </div>
 
-        {/* 3. Govt ID Verified */}
-        <div className="p-2.5 rounded-xl border bg-[#112a52] border-emerald-500/40 text-emerald-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <div className="flex items-center gap-1.5">
-              <IdCard className="w-3.5 h-3.5 text-blue-400" />
-              <span>Identity Check</span>
+        {/* Item 3: Government ID Saved */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <IdCard className="w-4 h-4" />
             </div>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <div>
+              <span className="text-xs font-bold text-slate-800">3. Govt ID Linked</span>
+              <p className="text-[11px] text-slate-500">Aadhaar / PAN Verified</p>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-300 font-bold mt-1">
-            Aadhaar / ID Stored
-          </span>
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
         </div>
 
-        {/* 4. Network Latency */}
-        <div className="p-2.5 rounded-xl border bg-[#112a52] border-emerald-500/40 text-emerald-300 flex flex-col justify-between">
-          <div className="flex items-center justify-between text-xs font-semibold">
-            <div className="flex items-center gap-1.5">
-              <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Network Speed</span>
+        {/* Item 4: Real-time Network Benchmark */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+              <Wifi className="w-4 h-4" />
             </div>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <div>
+              <span className="text-xs font-bold text-slate-800">4. Network Ping</span>
+              <p className="text-[11px] text-slate-500 font-mono">
+                {networkPing} ms • 5G / Fiber OK
+              </p>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-300 font-bold mt-1 font-mono">
-            {networkPing}ms • Low Latency
-          </span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
         </div>
 
       </div>
@@ -155,4 +170,3 @@ export const PreArmedChecklist: React.FC<PreArmedChecklistProps> = ({
 };
 
 export default PreArmedChecklist;
-

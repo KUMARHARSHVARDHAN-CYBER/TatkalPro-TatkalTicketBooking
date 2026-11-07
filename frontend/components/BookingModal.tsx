@@ -282,7 +282,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               ))}
             </div>
 
-            {/* Total Fare & Lock Guarantee */}
+            {/* Total Fare & Seat Protection */}
             <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
               <div>
                 <span className="text-xs text-slate-400">Total Payable:</span>
@@ -292,7 +292,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
               <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
                 <ShieldCheck className="w-4 h-4" />
-                <span>Zero Overselling Guarantee</span>
+                <span>Zero Overselling Protection</span>
               </div>
             </div>
 

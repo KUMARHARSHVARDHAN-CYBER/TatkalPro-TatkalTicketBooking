@@ -13,6 +13,7 @@ import {
   Zap,
   ArrowRight,
   X,
+  Lock,
 } from "lucide-react";
 import { PaymentTransaction } from "../lib/railway/types";
 
@@ -50,72 +51,90 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         body: JSON.stringify({
           amount: totalAmount,
           method: selectedMethod,
-          shouldFail: shouldSimulateFailure,
           gateway: activeGateway,
+          shouldFail: shouldSimulateFailure,
         }),
       });
 
       const data = await res.json();
       setIsProcessing(false);
 
-      if (res.status === 200 && data.success) {
-        onPaymentSuccess(data.data);
+      if (data.success && data.data) {
+        const tx: PaymentTransaction = data.data;
+        if (tx.status === "SUCCESS") {
+          onPaymentSuccess(tx);
+        } else {
+          onPaymentFailureSimulated(tx);
+        }
       } else {
-        // Payment failed
-        const failedTx: PaymentTransaction = data.error?.transaction || {
-          transactionId: `TXN_${Date.now()}`,
-          orderId: `ORD_${Date.now()}`,
-          amount: totalAmount,
-          currency: "INR",
-          status: "FAILED",
-          gateway: activeGateway,
-          method: selectedMethod,
-          failureReason: "Simulated Banking Switch Disruption.",
-          createdAt: new Date().toISOString(),
-        };
-        onPaymentFailureSimulated(failedTx);
+        // Gateway Timeout Fallback trigger
+        if (activeGateway === "RAZORPAY_MOCK") {
+          setActiveGateway("PAYU_MOCK");
+          alert("Primary Payment Gateway timed out. Auto-switched to Backup RailPay Gateway without releasing your seat hold.");
+        } else {
+          onPaymentFailureSimulated({
+            transactionId: `tx_failed_${Date.now()}`,
+            orderId: `order_${Date.now()}`,
+            amount: totalAmount,
+            currency: "INR",
+            status: "FAILED",
+            gateway: activeGateway,
+            method: selectedMethod,
+            failureReason: "Simulated Banking Switch Timeout during 10:00 AM rush.",
+            createdAt: new Date().toISOString(),
+          });
+        }
       }
     } catch {
       setIsProcessing(false);
-      onPaymentSuccess({
-        transactionId: `TXN_LOCAL_${Date.now()}`,
-        orderId: `ORD_LOCAL_${Date.now()}`,
+      onPaymentFailureSimulated({
+        transactionId: `tx_failed_${Date.now()}`,
+        orderId: `order_${Date.now()}`,
         amount: totalAmount,
         currency: "INR",
-        status: "SUCCESS",
+        status: "FAILED",
         gateway: activeGateway,
         method: selectedMethod,
-        utrNumber: `3${Math.floor(10000000000 + Math.random() * 90000000000)}`,
+        failureReason: "Network connectivity dropped during transaction.",
         createdAt: new Date().toISOString(),
       });
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md">
-      <div className="w-full max-w-xl bg-[#0c1a30] border border-slate-700 rounded-3xl p-5 sm:p-7 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs">
+      <div className="w-full max-w-xl bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
-              Multi-Gateway Fast Checkout
-            </span>
-            <h3 className="text-base sm:text-lg font-black text-white mt-1">Select Payment Method</h3>
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                Step 4 of 5 • Encrypted Checkout
+              </span>
+              <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                Select Payment Method
+              </h3>
+            </div>
           </div>
 
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 uppercase">Total Amount</span>
-            <div className="text-lg font-black text-emerald-400 font-mono">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black font-mono text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
               ₹{totalAmount.toLocaleString("en-IN")}
-            </div>
+            </span>
+            <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* Method Selector Tabs */}
+        {/* Payment Tabs: UPI, Card, Netbanking, Wallet */}
         <div className="grid grid-cols-4 gap-2 mb-4">
           {[
-            { id: "UPI", label: "Fast UPI", icon: QrCode, badge: "Recommended" },
+            { id: "UPI", label: "UPI", icon: QrCode },
             { id: "CARD", label: "Cards", icon: CreditCard },
             { id: "NETBANKING", label: "NetBanking", icon: Building2 },
             { id: "WALLET", label: "Wallets", icon: Wallet },
@@ -127,211 +146,176 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setSelectedMethod(tab.id as any)}
-                className={`p-2.5 rounded-2xl border transition flex flex-col items-center text-center gap-1 relative ${
+                className={`py-3 px-2 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition cursor-pointer text-xs font-bold ${
                   isSelected
-                    ? "bg-[#14284d] border-orange-500 text-white shadow-md shadow-orange-500/20"
-                    : "bg-[#091529] border-slate-800 text-slate-400 hover:text-white"
+                    ? "bg-blue-50 border-blue-600 text-blue-800 ring-2 ring-blue-600/20 shadow-2xs"
+                    : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200"
                 }`}
               >
-                {tab.badge && (
-                  <span className="absolute -top-2 px-1.5 py-0.2 rounded-full text-[8px] font-bold bg-orange-500 text-white">
-                    Fast
-                  </span>
-                )}
-                <Icon className={`w-4 h-4 ${isSelected ? "text-orange-400" : "text-slate-400"}`} />
-                <span className="text-[11px] font-bold">{tab.label}</span>
+                <Icon className={`w-4 h-4 ${isSelected ? "text-blue-600" : "text-slate-500"}`} />
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Dynamic Payment Body */}
-        <div className="bg-[#091529] border border-slate-800 rounded-2xl p-4 mb-4 flex flex-col gap-3">
-          
-          {selectedMethod === "UPI" && (
-            <div className="flex flex-col gap-3">
-              {/* UPI Sub-Options */}
-              <div className="flex gap-2 border-b border-slate-800/80 pb-2">
-                <button
-                  type="button"
-                  onClick={() => setUpiSubOption("QR")}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                    upiSubOption === "QR" ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Dynamic QR Code
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUpiSubOption("INTENT")}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                    upiSubOption === "INTENT" ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  UPI Apps (GPay/PhonePe)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUpiSubOption("VPA")}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                    upiSubOption === "VPA" ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  Enter UPI ID
-                </button>
-              </div>
-
-              {upiSubOption === "QR" && (
-                <div className="flex flex-col sm:flex-row items-center gap-4 py-2">
-                  <div className="w-32 h-32 rounded-2xl bg-white p-2.5 shadow-xl flex items-center justify-center shrink-0">
-                    {/* Simulated Dynamic QR Code */}
-                    <div className="w-full h-full border-4 border-slate-900 border-dashed rounded-lg flex flex-col items-center justify-center p-1 text-center">
-                      <QrCode className="w-16 h-16 text-slate-900" />
-                      <span className="text-[8px] font-bold text-slate-900">Scan & Pay</span>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-white">Scan with Any UPI App</span>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Open Google Pay, PhonePe, Paytm, or BHIM. Zero redirect failures with dynamic instant intent.
-                    </p>
-                    <div className="flex items-center gap-2 mt-2 text-[10px] text-emerald-400 font-mono font-bold">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Instant Railway Gateway Webhook</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {upiSubOption === "INTENT" && (
-                <div className="grid grid-cols-3 gap-2 py-2">
-                  {["Google Pay", "PhonePe", "Paytm"].map((app) => (
-                    <button
-                      key={app}
-                      type="button"
-                      className="p-3 rounded-xl bg-[#112444] border border-slate-700 hover:border-orange-500 text-xs font-bold text-white transition text-center"
-                    >
-                      {app}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {upiSubOption === "VPA" && (
-                <div className="py-2 flex flex-col gap-1.5">
-                  <label className="text-xs text-slate-300">Enter Virtual Payment Address (VPA):</label>
-                  <input
-                    type="text"
-                    value={vpaId}
-                    onChange={(e) => setVpaId(e.target.value)}
-                    placeholder="mobilenumber@upi"
-                    className="w-full bg-[#112444] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
-                  />
-                </div>
-              )}
+        {/* Tab 1: UPI Experience */}
+        {selectedMethod === "UPI" && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <span className="text-xs font-bold text-slate-800">Instant UPI Payment (Recommended for Tatkal)</span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                0% Gateway Fee
+              </span>
             </div>
-          )}
 
-          {selectedMethod === "CARD" && (
-            <div className="flex flex-col gap-2.5 py-1 text-xs">
-              <input
-                type="text"
-                placeholder="Card Number (XXXX XXXX XXXX 4829)"
-                className="w-full bg-[#112444] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  placeholder="MM/YY"
-                  className="bg-[#112444] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
-                />
-                <input
-                  type="password"
-                  maxLength={3}
-                  placeholder="CVV"
-                  className="bg-[#112444] border border-slate-700 rounded-xl px-3 py-2 text-white font-mono"
-                />
-              </div>
-            </div>
-          )}
-
-          {selectedMethod === "NETBANKING" && (
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {["State Bank of India", "HDFC Bank", "ICICI Bank", "Axis Bank"].map((bank) => (
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: "QR", label: "Scan QR Code" },
+                { id: "INTENT", label: "GPay / PhonePe" },
+                { id: "VPA", label: "Enter UPI ID" },
+              ].map((opt) => (
                 <button
-                  key={bank}
+                  key={opt.id}
                   type="button"
-                  className="p-2.5 rounded-xl bg-[#112444] border border-slate-700 text-left text-white font-medium"
+                  onClick={() => setUpiSubOption(opt.id as any)}
+                  className={`py-2 px-2 rounded-xl text-xs font-bold border transition ${
+                    upiSubOption === opt.id
+                      ? "bg-white border-blue-600 text-blue-800 shadow-2xs"
+                      : "bg-slate-100 text-slate-600 border-slate-200"
+                  }`}
                 >
-                  {bank}
+                  {opt.label}
                 </button>
               ))}
             </div>
-          )}
 
-          {selectedMethod === "WALLET" && (
-            <div className="text-xs text-slate-300 p-2">
-              IRCTC iMudra Wallet balance: <strong className="text-emerald-400 font-mono">₹4,250.00</strong> (Instant 1-tap deduction).
-            </div>
-          )}
+            {upiSubOption === "QR" && (
+              <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-center gap-2">
+                <div className="w-32 h-32 bg-slate-50 border border-slate-300 rounded-xl p-2 flex items-center justify-center">
+                  {/* Visual QR Code Mock */}
+                  <div className="w-28 h-28 border-4 border-slate-800 p-1 flex flex-col justify-between">
+                    <div className="flex justify-between">
+                      <div className="w-6 h-6 bg-slate-800" />
+                      <div className="w-6 h-6 bg-slate-800" />
+                    </div>
+                    <div className="text-[9px] font-mono font-bold text-slate-500">BHIM UPI</div>
+                    <div className="flex justify-between">
+                      <div className="w-6 h-6 bg-slate-800" />
+                      <div className="w-6 h-6 bg-slate-800" />
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs text-slate-600">Scan with any UPI App (GPay, PhonePe, Paytm, BHIM)</span>
+              </div>
+            )}
 
-        </div>
+            {upiSubOption === "VPA" && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Your Virtual Payment Address (VPA)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. mobile@upi or name@okaxis"
+                  value={vpaId}
+                  onChange={(e) => setVpaId(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Auto-Fallback Guarantee Banner */}
-        <div className="bg-[#102340] border border-blue-500/20 rounded-2xl p-3 mb-4 flex items-center justify-between text-xs text-slate-300">
-          <div className="flex items-center gap-2">
-            <RotateCcw className="w-4 h-4 text-emerald-400" />
+        {/* Tab 2: Cards */}
+        {selectedMethod === "CARD" && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-3 text-xs">
             <div>
-              <span className="font-bold text-white">Smart Gateway Auto-Fallback</span>
-              <p className="text-[10px] text-slate-400">If Razorpay switch stumbles, PayU mock engages automatically without losing seat lock.</p>
+              <label className="block font-bold text-slate-700 mb-1">Card Number</label>
+              <input
+                type="text"
+                placeholder="4532 •••• •••• 8920"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-mono"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Valid Thru</label>
+                <input type="text" placeholder="MM/YY" className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-mono" />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">CVV</label>
+                <input type="password" placeholder="•••" maxLength={4} className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-mono" />
+              </div>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold text-[10px] border border-emerald-500/30">
-            Active
-          </span>
-        </div>
+        )}
 
-        {/* Simulated Failure Toggle (Demo Edge-Case Feature) */}
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+        {/* Tab 3: Netbanking */}
+        {selectedMethod === "NETBANKING" && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2 text-xs">
+            <span className="font-bold text-slate-700">Select Bank</span>
+            <div className="grid grid-cols-3 gap-2">
+              {["HDFC Bank", "SBI", "ICICI Bank", "Axis Bank", "Kotak", "PNB"].map((b) => (
+                <button key={b} type="button" className="p-2 rounded-xl bg-white border border-slate-200 hover:border-blue-400 font-bold text-slate-800 text-[11px] text-center">
+                  {b}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Wallets */}
+        {selectedMethod === "WALLET" && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2 text-xs">
+            <span className="font-bold text-slate-700">Select Wallet</span>
+            <div className="grid grid-cols-3 gap-2">
+              {["IRCTC iMudra", "Amazon Pay", "Paytm Wallet", "Mobikwik", "Freecharge", "JioMoney"].map((w) => (
+                <button key={w} type="button" className="p-2 rounded-xl bg-white border border-slate-200 hover:border-blue-400 font-bold text-slate-800 text-[11px] text-center">
+                  {w}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Intentional Payment Failure Testing Toggle */}
+        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-amber-900">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
             <div>
-              <span className="text-xs font-bold text-amber-200">Test Failure & Auto-Refund Recovery:</span>
-              <p className="text-[10px] text-amber-300/80">Simulates "Money debited but bank gateway failed" to demo automatic reconciliation.</p>
+              <strong>Test Payment Recovery Flow:</strong>
+              <p className="text-[11px] text-amber-700">Simulate bank gateway failure to test auto-refund & auto-fallback.</p>
             </div>
           </div>
           <input
             type="checkbox"
             checked={shouldSimulateFailure}
             onChange={(e) => setShouldSimulateFailure(e.target.checked)}
-            className="w-4 h-4 rounded text-orange-500 bg-slate-900 border-slate-700"
+            className="w-4 h-4 accent-amber-600 cursor-pointer"
           />
         </div>
 
-        {/* Action Controls */}
-        <div className="flex gap-2.5">
+        {/* Pay Action CTA */}
+        <div className="mt-4 pt-3 border-t border-slate-100 flex gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="py-3 px-4 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs"
+            className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
           >
             Cancel
           </button>
+
           <button
             type="button"
             disabled={isProcessing}
             onClick={handlePay}
-            className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs sm:text-sm shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 py-3.5 px-5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-sm shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer transition active:scale-98"
           >
             {isProcessing ? (
-              <>
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                <span>Processing Multi-Gateway Payment...</span>
-              </>
+              <span>Authorizing with Banking Gateway...</span>
             ) : (
               <>
-                <ShieldCheck className="w-4 h-4" />
-                <span>CONFIRM & PAY ₹{totalAmount.toLocaleString("en-IN")}</span>
+                <Lock className="w-4 h-4" />
+                <span>PAY ₹{totalAmount.toLocaleString("en-IN")} SECURELY</span>
               </>
             )}
           </button>
@@ -343,4 +327,3 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 };
 
 export default PaymentModal;
-

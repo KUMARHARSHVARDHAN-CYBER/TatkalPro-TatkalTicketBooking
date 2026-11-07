@@ -1,5 +1,5 @@
 {
-  "name": "TatkalPro - IRCTC Next-Gen Railway Booking",
+  "name": "TatkalPro - Tatkal Railway Booking Demo",
   "short_name": "TatkalPro",
   "description": "Fast, resilient Tatkal ticket booking PWA with server-synced countdowns and auto-recovery.",
   "start_url": "/",

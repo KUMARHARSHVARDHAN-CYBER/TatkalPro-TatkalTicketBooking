@@ -11,6 +11,7 @@ import {
   Receipt,
   AlertCircle,
   Zap,
+  CheckCircle2,
 } from "lucide-react";
 import { TrainSchedule, ClassFareAndAvailability, Passenger, QuotaCode } from "../lib/railway/types";
 
@@ -38,7 +39,7 @@ export const ReviewAndCaptchaModal: React.FC<ReviewAndCaptchaModalProps> = ({
   const [captchaCode, setCaptchaCode] = useState("K9X4M");
   const [userCaptchaInput, setUserCaptchaInput] = useState("");
   const [captchaError, setCaptchaError] = useState(false);
-  const [holdRemainingSeconds, setHoldRemainingSeconds] = useState(480); // 8 minutes hold
+  const [holdRemainingSeconds, setHoldRemainingSeconds] = useState(480);
   const [isHolding, setIsHolding] = useState(false);
 
   // Generate fresh captcha
@@ -73,14 +74,14 @@ export const ReviewAndCaptchaModal: React.FC<ReviewAndCaptchaModalProps> = ({
 
   // Audio speech synthesis for accessible captcha
   const playAudioCaptcha = () => {
-    if ("speechSynthesis" in window) {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
       const speech = new SpeechSynthesisUtterance();
       speech.text = captchaCode.split("").join(" ");
       speech.rate = 0.8;
       speech.lang = "en-IN";
       window.speechSynthesis.speak(speech);
     } else {
-      alert(`Captcha audio spelled out: ${captchaCode.split("").join(" ")}`);
+      alert(`Captcha spelled out: ${captchaCode.split("").join(" ")}`);
     }
   };
 
@@ -88,7 +89,6 @@ export const ReviewAndCaptchaModal: React.FC<ReviewAndCaptchaModalProps> = ({
     e.preventDefault();
     if (userCaptchaInput.trim().toUpperCase() !== captchaCode) {
       setCaptchaError(true);
-      // Resilience feature: Never wipe passenger form! Just issue fresh captcha and shake.
       refreshCaptcha();
       return;
     }
@@ -97,7 +97,7 @@ export const ReviewAndCaptchaModal: React.FC<ReviewAndCaptchaModalProps> = ({
     setTimeout(() => {
       setIsHolding(false);
       onProceedToPayment(`hold_${Date.now()}`);
-    }, 600);
+    }, 500);
   };
 
   const passengerCount = passengers.length || 1;
@@ -113,133 +113,176 @@ export const ReviewAndCaptchaModal: React.FC<ReviewAndCaptchaModalProps> = ({
   const timerStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md">
-      <div className="w-full max-w-xl bg-[#0c1a30] border border-slate-700 rounded-3xl p-5 sm:p-7 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs">
+      <div className="w-full max-w-xl bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
         
         {/* Header with Seat Hold Timer */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
           <div className="flex items-center gap-2">
-            <Lock className="w-5 h-5 text-orange-400" />
+            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+              <Receipt className="w-4 h-4" />
+            </div>
             <div>
-              <h3 className="text-base font-extrabold text-white">Review Booking & Captcha</h3>
-              <p className="text-[11px] text-slate-400">Step 2 of 3 • Tatkal Guaranteed Seat Hold</p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                Step 3 of 5 • Review & Verification
+              </span>
+              <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                Review Journey & Upfront Fare
+              </h3>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-full text-xs text-emerald-400 font-mono font-bold">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{timerStr}</span>
-          </div>
-        </div>
-
-        {/* Seat Hold Assurance Banner */}
-        <div className="bg-[#112444] border border-blue-500/30 rounded-2xl p-3 flex items-center gap-3 text-xs text-slate-300 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-4 h-4" />
-          </div>
-          <div>
-            <span className="font-bold text-white">Seat Held in Memory: </span>
-            <span>Your {classInfo.classCode} quota is held exclusively for you for 8 minutes while you complete captcha and payment.</span>
-          </div>
-        </div>
-
-        {/* Journey & Passengers Summary */}
-        <div className="bg-[#091529] border border-slate-800 rounded-2xl p-4 mb-4 flex flex-col gap-2.5 text-xs">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-            <div>
-              <span className="font-bold text-white text-sm">{train.trainName} (#{train.trainNumber})</span>
-              <p className="text-slate-400">{train.fromStation.code} ➔ {train.toStation.code} • {journeyDate}</p>
+          <div className="flex items-center gap-2">
+            {/* 8-Minute Hold Timer */}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-mono text-xs font-bold">
+              <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+              <span>Seat Hold: {timerStr}</span>
             </div>
-            <span className="px-2.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-bold border border-orange-500/30">
-              {classInfo.classCode} ({quota})
+            <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Train & Journey Summary Card */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4 flex flex-col gap-2 text-xs">
+          <div className="flex justify-between items-start">
+            <div>
+              <span className="font-extrabold text-sm text-slate-900">
+                {train.trainNumber} - {train.trainName}
+              </span>
+              <p className="text-slate-500 mt-0.5">
+                Class: <strong className="text-slate-800">{classInfo.classCode} ({classInfo.className})</strong> • {quota} Quota
+              </p>
+            </div>
+            <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+              {journeyDate}
             </span>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Passengers:</span>
+          <div className="border-t border-slate-200 pt-2 flex items-center justify-between text-slate-600">
+            <div>
+              From: <strong className="text-slate-800">{train.fromStation.name} ({train.fromStation.code})</strong> at {train.departureTime}
+            </div>
+            <div>
+              To: <strong className="text-slate-800">{train.toStation.name} ({train.toStation.code})</strong> at {train.arrivalTime}
+            </div>
+          </div>
+        </div>
+
+        {/* Passengers Mini-List */}
+        <div className="border border-slate-200 rounded-2xl p-3.5 mb-4 bg-white flex flex-col gap-2">
+          <span className="text-xs font-bold text-slate-700">
+            Confirmed Passengers ({passengers.length})
+          </span>
+          <div className="flex flex-wrap gap-2">
             {passengers.map((p, idx) => (
-              <div key={p.id || idx} className="flex items-center justify-between text-slate-200">
-                <span>{idx + 1}. {p.name} ({p.gender}, {p.age} yrs)</span>
-                <span className="text-slate-400 font-mono">Berth: {p.berthPreference}</span>
-              </div>
+              <span
+                key={p.id}
+                className="text-xs font-semibold px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-slate-800 flex items-center gap-1.5"
+              >
+                <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center">
+                  {idx + 1}
+                </span>
+                <span>{p.name} ({p.age}, {p.gender}) • {p.berthPreference}</span>
+              </span>
             ))}
           </div>
         </div>
 
-        {/* Transparent Upfront Fare Breakdown */}
-        <div className="bg-[#091529] border border-slate-800 rounded-2xl p-4 mb-5 flex flex-col gap-1.5 text-xs">
-          <div className="flex items-center gap-1.5 font-bold text-slate-200 mb-1">
-            <Receipt className="w-3.5 h-3.5 text-orange-400" />
-            <span>Upfront Total Fare Breakdown (No Hidden Charges)</span>
+        {/* Upfront Transparent Fare Breakdown */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4 flex flex-col gap-2 text-xs">
+          <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-slate-200 pb-1.5">
+            Transparent Fare Breakdown (No Hidden Fees)
+          </span>
+
+          <div className="flex justify-between text-slate-600">
+            <span>Base Fare ({passengerCount} × ₹{classInfo.baseFare})</span>
+            <span className="font-mono font-semibold text-slate-800">₹{baseTotal.toLocaleString("en-IN")}</span>
           </div>
-          <div className="flex justify-between text-slate-400">
-            <span>Base Ticket Fare ({passengerCount} pax)</span>
-            <span className="font-mono text-slate-200">₹{baseTotal}</span>
-          </div>
-          {tatkalTotal > 0 && (
-            <div className="flex justify-between text-slate-400">
-              <span>Tatkal Surcharge Charge</span>
-              <span className="font-mono text-orange-400">+₹{tatkalTotal}</span>
+          {classInfo.tatkalCharge > 0 && (
+            <div className="flex justify-between text-slate-600">
+              <span>Tatkal Charges ({passengerCount} × ₹{classInfo.tatkalCharge})</span>
+              <span className="font-mono font-semibold text-slate-800">₹{tatkalTotal.toLocaleString("en-IN")}</span>
             </div>
           )}
-          <div className="flex justify-between text-slate-400">
-            <span>Superfast & Reservation Charge</span>
-            <span className="font-mono text-slate-200">+₹{superfastTotal}</span>
+          <div className="flex justify-between text-slate-600">
+            <span>Superfast / Speed Surcharge</span>
+            <span className="font-mono font-semibold text-slate-800">₹{superfastTotal.toLocaleString("en-IN")}</span>
           </div>
-          <div className="flex justify-between text-slate-400">
-            <span>GST (5% on AC Classes)</span>
-            <span className="font-mono text-slate-200">+₹{gstTotal}</span>
+          <div className="flex justify-between text-slate-600">
+            <span>GST (5%)</span>
+            <span className="font-mono font-semibold text-slate-800">₹{gstTotal.toLocaleString("en-IN")}</span>
           </div>
-          <div className="flex justify-between text-slate-400">
-            <span>IRCTC / PG Convenience Fee</span>
-            <span className="font-mono text-slate-200">+₹{pgFee}</span>
+          <div className="flex justify-between text-slate-600">
+            <span>Payment Gateway Service Fee</span>
+            <span className="font-mono font-semibold text-slate-800">₹{pgFee}</span>
           </div>
-          <div className="border-t border-slate-700/80 pt-2 mt-1 flex justify-between items-center text-sm font-black text-white">
+
+          <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm font-bold text-slate-900">
             <span>Total Payable Amount</span>
-            <span className="font-mono text-lg text-emerald-400">₹{grandTotal.toLocaleString("en-IN")}</span>
+            <span className="text-xl font-black font-mono text-blue-700">₹{grandTotal.toLocaleString("en-IN")}</span>
           </div>
         </div>
 
-        {/* Accessible Audio & Visual Captcha Form */}
+        {/* Regret Shield Calm Pre-Payment Summary */}
+        <div className="flex items-center gap-2 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 font-bold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>Checked: stations, date, passengers, ID. All good.</span>
+        </div>
+
+        {/* Captcha Verification Section */}
         <form onSubmit={handleVerifyAndProceed} className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-              Enter Verification Captcha
+            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-blue-600" />
+              <span>Accessible Human Verification Captcha</span>
             </label>
-            <span className="text-[10px] text-slate-400">Never wipes form on error</span>
+            <span className="text-[11px] text-slate-400">Case-insensitive</span>
           </div>
 
           <div className="grid grid-cols-12 gap-3 items-center">
-            {/* Visual Captcha Canvas Display */}
-            <div className="col-span-6 bg-slate-900 border border-slate-700 rounded-2xl p-2 flex items-center justify-between">
-              <div className="relative font-mono font-black text-xl tracking-[6px] text-white select-none px-3 py-1 bg-[#071224] rounded-xl border border-slate-800">
-                {captchaCode}
-                {/* Visual Distortion Line */}
-                <div className="absolute inset-x-2 top-1/2 h-0.5 bg-orange-500/40 pointer-events-none -rotate-6" />
-              </div>
+            {/* Visual SVG Captcha with Texture */}
+            <div className="col-span-6 bg-slate-100 border border-slate-300 rounded-2xl p-2 flex items-center justify-between">
+              <svg className="w-36 h-10 select-none" viewBox="0 0 160 45">
+                <rect width="160" height="45" fill="#f1f5f9" rx="8" />
+                <path d="M10 22 Q 45 5, 80 22 T 150 22" fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                <path d="M15 15 Q 50 35, 90 15 T 145 25" fill="none" stroke="#cbd5e1" strokeWidth="1" />
+                <text
+                  x="80"
+                  y="30"
+                  textAnchor="middle"
+                  fontFamily="monospace"
+                  fontSize="24"
+                  fontWeight="900"
+                  letterSpacing="6"
+                  fill="#1e293b"
+                >
+                  {captchaCode}
+                </text>
+              </svg>
 
-              {/* Action Buttons: Audio & Refresh */}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={playAudioCaptcha}
-                  className="p-2 rounded-xl text-blue-400 hover:text-white hover:bg-slate-800 transition"
-                  title="Listen to Captcha"
+                  className="p-2 rounded-xl text-blue-600 hover:bg-white transition"
+                  title="Play audio spelling"
                 >
                   <Volume2 className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={refreshCaptcha}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                  title="Generate New Captcha"
+                  className="p-2 rounded-xl text-slate-600 hover:bg-white transition"
+                  title="Generate new captcha"
                 >
                   <RotateCw className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Big Input Box */}
+            {/* Input Box */}
             <div className="col-span-6">
               <input
                 type="text"
@@ -252,19 +295,19 @@ export const ReviewAndCaptchaModal: React.FC<ReviewAndCaptchaModalProps> = ({
                   setUserCaptchaInput(e.target.value);
                   setCaptchaError(false);
                 }}
-                className={`w-full uppercase font-mono tracking-widest text-center text-lg font-black bg-[#112444] border rounded-2xl py-2 text-white focus:outline-none transition ${
+                className={`w-full uppercase font-mono tracking-widest text-center text-lg font-black bg-slate-50 border rounded-2xl py-2 text-slate-900 focus:outline-none transition ${
                   captchaError
-                    ? "border-rose-500 ring-2 ring-rose-500/50 bg-rose-950/20"
-                    : "border-slate-700 focus:border-orange-500"
+                    ? "border-rose-500 ring-2 ring-rose-500/30 bg-rose-50 text-rose-800"
+                    : "border-slate-300 focus:border-blue-600 focus:bg-white"
                 }`}
               />
             </div>
           </div>
 
           {captchaError && (
-            <div className="flex items-center gap-1.5 text-xs text-rose-400 font-semibold mt-0.5">
+            <div className="flex items-center gap-1.5 text-xs text-rose-600 font-semibold">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Incorrect captcha. A new code has been loaded. Your passenger details are safely preserved!</span>
+              <span>Incorrect captcha. A fresh code has been generated. Your passenger details are safe!</span>
             </div>
           )}
 
@@ -273,20 +316,17 @@ export const ReviewAndCaptchaModal: React.FC<ReviewAndCaptchaModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+              className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={isHolding}
-              className="flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs sm:text-sm shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 py-3 px-5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 cursor-pointer transition active:scale-98"
             >
               {isHolding ? (
-                <>
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                  <span>Securing Seat Lock...</span>
-                </>
+                <span>Securing Atomic Seat Lock...</span>
               ) : (
                 <>
                   <Zap className="w-4 h-4" />
@@ -303,4 +343,3 @@ export const ReviewAndCaptchaModal: React.FC<ReviewAndCaptchaModalProps> = ({
 };
 
 export default ReviewAndCaptchaModal;
-

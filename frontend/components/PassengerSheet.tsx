@@ -238,6 +238,7 @@ export const PassengerSheet: React.FC<PassengerSheetProps> = ({
                 <option value="NO_PREFERENCE">None</option>
               </select>
             </div>
+            <p className="text-[10px] text-amber-400 mt-0.5">Demo only. Please don&apos;t enter real ID numbers.</p>
             <div className="flex gap-2 justify-end">
               <button
                 type="button"

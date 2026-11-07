@@ -16,6 +16,11 @@ export interface ClassAvailability {
   statusText: string; // e.g. "AVAILABLE - 24", "WL 12", "RAC 6", "REGRET"
   availableSeats: number;
   updatedAt: string;
+  baseFare?: number;
+  tatkalCharge?: number;
+  superfastCharge?: number;
+  gstAmount?: number;
+  pgFee?: number;
 }
 
 export interface Station {
@@ -29,7 +34,7 @@ export interface Train {
   id: string;
   number: string;
   name: string;
-  type: "VANDE_BHARAT" | "RAJDHANI" | "SHATABDI" | "TEJAS" | "SUPERFAST" | "EXPRESS";
+  type: "VANDE_BHARAT" | "RAJDHANI" | "SHATABDI" | "TEJAS" | "SUPERFAST" | "EXPRESS" | "PASSENGER";
   fromStation: Station;
   toStation: Station;
   departureTime: string; // "16:55"
@@ -54,5 +59,5 @@ export interface FilterState {
   departureTime: string[]; // "morning", "afternoon", "evening", "night"
   classes: TravelClassCode[];
   trainTypes: string[];
-  sortBy: "departure" | "duration" | "availability";
+  sortBy: "departure" | "duration" | "availability" | "fare";
 }

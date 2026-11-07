@@ -61,7 +61,7 @@ export interface TrainSchedule {
   trainNumber: string;
   trainName: string;
   trainNameHindi: string;
-  trainType: "VANDE_BHARAT" | "RAJDHANI" | "TEJAS" | "SHATABDI" | "SUPERFAST" | "EXPRESS";
+  trainType: "VANDE_BHARAT" | "RAJDHANI" | "TEJAS" | "SHATABDI" | "SUPERFAST" | "EXPRESS" | "PASSENGER";
   fromStation: Station;
   toStation: Station;
   departureTime: string;

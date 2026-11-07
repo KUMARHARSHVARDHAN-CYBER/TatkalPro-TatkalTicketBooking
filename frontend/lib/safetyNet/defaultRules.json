@@ -1,0 +1,113 @@
+[
+  {
+    "id": "RULE_MAX_PASSENGERS",
+    "name": "Maximum 4 Passengers per Tatkal Ticket",
+    "description": "Indian Railways strictly limits Tatkal bookings to a maximum of 4 passengers per PNR. Groups larger than 4 must be coordinated across multiple PNRs.",
+    "severity": "CRITICAL",
+    "category": "PASSENGER_LIMIT",
+    "source_note": "Railway Board Commercial Circular No. 59/2015",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_PRIMARY_ID_REQUIRED",
+    "name": "Mandatory Primary Passenger Photo ID",
+    "description": "At least one passenger on the e-ticket must carry an original government-approved photo identity proof during the journey. Failure results in penalty fares.",
+    "severity": "HIGH",
+    "category": "ID_DOCUMENT",
+    "source_note": "IRCTC Compulsory Photo ID Notice 2012",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_TATKAL_NON_REFUNDABLE",
+    "name": "Non-Refundable Policy on Confirmed Tatkal",
+    "description": "Confirmed Tatkal tickets are non-refundable upon cancellation, unless the train is cancelled or delayed by over 3 hours (requiring TDR filing before chart preparation).",
+    "severity": "HIGH",
+    "category": "REFUND_RISK",
+    "source_note": "Indian Railways Passenger Fare & Refund Rules 2015",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_MULTI_STATION_CITY_CONFUSION",
+    "name": "Same-City Terminal Confusion Prevention",
+    "description": "Detects if the selected departure or arrival station differs from the primary city terminus searched (e.g. NDLS vs NZM/DLI/ANVT in Delhi, or MMCT vs CSMT/BDTS/LTT in Mumbai).",
+    "severity": "MEDIUM",
+    "category": "STATION",
+    "source_note": "CRIS Terminal Routing Standard",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_DATE_WINDOW_SANITY",
+    "name": "Tatkal 1-Day Advance Window Sanity",
+    "description": "Ensures the selected travel date matches the active Tatkal booking window (day prior to origin departure: AC at 10:00 AM, Non-AC at 11:00 AM). Blocks past dates.",
+    "severity": "CRITICAL",
+    "category": "DATE",
+    "source_note": "IRCTC Tatkal Booking Timings Schedule",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_MIDNIGHT_CROSSING",
+    "name": "Midnight-Crossing Departure Alert",
+    "description": "Warns when a train departs between 23:30 and 00:30, where travelers frequently mix up calendar dates (e.g., 00:15 departure requires arriving at station the night before).",
+    "severity": "MEDIUM",
+    "category": "DATE",
+    "source_note": "Railway Passenger Awareness Advisory",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_LADIES_QUOTA_ELIGIBILITY",
+    "name": "Ladies Quota Gender & Age Verification",
+    "description": "Ladies quota is exclusively reserved for female passengers traveling alone or accompanied only by children below 12 years of age. Adult males are prohibited.",
+    "severity": "CRITICAL",
+    "category": "QUOTA",
+    "source_note": "Indian Railways Ladies Quota Eligibility Guidelines",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_SENIOR_CITIZEN_ELIGIBILITY",
+    "name": "Senior Citizen Age Verification",
+    "description": "Senior citizen quota and lower berth allocation require male passengers to be 60+ and female passengers to be 45+/58+ years of age.",
+    "severity": "MEDIUM",
+    "category": "QUOTA",
+    "source_note": "IRCTC Concession & Lower Berth Allocation Rules",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_DUPLICATE_PASSENGER",
+    "name": "Duplicate Passenger Detection",
+    "description": "Checks for identical passenger names and ages within the same booking draft, which causes IRCTC validation rejections.",
+    "severity": "HIGH",
+    "category": "PASSENGER_LIMIT",
+    "source_note": "CRIS PRS Passenger Deduplication Rule",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_ID_FORMAT_SANITY",
+    "name": "Government ID Number Format Verification",
+    "description": "Validates format of passenger IDs (e.g. 12-digit Aadhaar, 10-char alphanumeric PAN, or valid passport format) to prevent PRS rejection.",
+    "severity": "MEDIUM",
+    "category": "ID_DOCUMENT",
+    "source_note": "UIDAI / Income Tax / MEA Validation Standards",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  },
+  {
+    "id": "RULE_NAME_FORMAT_SANITY",
+    "name": "Passenger Name Format Hygiene",
+    "description": "Ensures passenger names contain valid alphabetical characters with a minimum length of 2 characters and no numeric or punctuation symbols.",
+    "severity": "MEDIUM",
+    "category": "PASSENGER_LIMIT",
+    "source_note": "PRS Passenger Charting Specification",
+    "last_verified": "04 Nov 2026",
+    "enabled": true
+  }
+]
+

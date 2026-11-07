@@ -48,121 +48,125 @@ export const AutoRefundTracker: React.FC<AutoRefundTrackerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-md">
-      <div className="w-full max-w-lg bg-[#0c1a30] border border-amber-500/40 rounded-3xl p-5 sm:p-7 shadow-2xl flex flex-col gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-xs">
+      <div className="w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl flex flex-col gap-4 text-xs">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <RotateCcw className="w-4 h-4" />
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+              <RotateCcw className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-                Payment Disruption Detected
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                Payment Interrupted
               </span>
-              <h3 className="text-base font-bold text-white mt-0.5">Automated Reconciliation Hub</h3>
+              <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                Auto-Refund & Reconciliation Tracker
+              </h3>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Human Readable Explanation */}
-        <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3.5 text-xs text-rose-200 flex items-start gap-2.5">
-          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+        {/* Reassurance Banner */}
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-900 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div>
-            <span className="font-bold text-white">Bank Switch Timeout: </span>
-            <span>
-              The primary bank gateway did not confirm the ticket in time. If any money was deducted from your account, our instant auto-reconciliation engine has queued a 100% refund.
-            </span>
+            <strong className="text-emerald-950 font-bold text-sm">Your Money is 100% Safe</strong>
+            <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
+              If any amount was debited from your bank account, our automatic switch reconciliation has logged your transaction and initiates a full 100% refund.
+            </p>
           </div>
         </div>
 
-        {/* Live Visual State Machine */}
-        <div className="bg-[#091529] border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
-          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-            Reconciliation & Refund Tracker
+        {/* Failed Transaction Details */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2">
+          <div className="flex justify-between">
+            <span className="text-slate-500">Transaction ID:</span>
+            <span className="font-mono font-bold text-slate-800">{failedTransaction.transactionId}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">Attempted Amount:</span>
+            <span className="font-mono font-bold text-slate-800">₹{failedTransaction.amount.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">Gateway:</span>
+            <span className="font-mono text-slate-800">{failedTransaction.gateway}</span>
+          </div>
+          <div className="flex justify-between text-rose-700 font-semibold border-t border-slate-200 pt-1.5">
+            <span>Failure Reason:</span>
+            <span className="text-right max-w-xs">{failedTransaction.failureReason || "Bank gateway timeout"}</span>
+          </div>
+        </div>
+
+        {/* Multi-Step Live Refund Timeline */}
+        <div className="border border-slate-200 rounded-2xl p-4 flex flex-col gap-3">
+          <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
+            Live Banking Status Timeline
           </span>
 
-          <div className="flex flex-col gap-2.5">
-            {/* Step 1: Gateway Attempt */}
-            <div className="flex items-center gap-3 text-xs">
-              <div className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-[10px]">
-                1
-              </div>
-              <div className="flex-1">
-                <span className="font-semibold text-white">Primary Payment Gateway</span>
-                <p className="text-[10px] text-slate-400 font-mono">TXN ID: {failedTransaction.transactionId}</p>
-              </div>
-              <span className="text-[10px] font-bold text-rose-400 uppercase">Timeout / Failed</span>
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+              ✓
             </div>
-
-            {/* Step 2: Auto Reconciliation */}
-            <div className="flex items-center gap-3 text-xs">
-              <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-[10px]">
-                2
-              </div>
-              <div className="flex-1">
-                <span className="font-semibold text-white">Bank Switch Reconciliation</span>
-                <p className="text-[10px] text-slate-400">Verifying debit status with NPCI / Issuer bank</p>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-400">
-                {reconciled ? "Matched ✓" : "In Progress..."}
-              </span>
+            <div>
+              <span className="font-bold text-slate-800">1. Debited at Source Bank</span>
+              <p className="text-[11px] text-slate-400">Captured at {new Date().toLocaleTimeString()}</p>
             </div>
+          </div>
 
-            {/* Step 3: Instant Refund Dispatched */}
-            <div className="flex items-center gap-3 text-xs">
-              <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px]">
-                3
-              </div>
-              <div className="flex-1">
-                <span className="font-semibold text-white">Refund to Source Account</span>
-                <p className="text-[10px] text-slate-400 font-mono">
-                  {reconciled ? "UTR: 329048104829 • Credited within 2 mins" : "Awaiting sync"}
-                </p>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-400 font-mono">
-                {reconciled ? "₹1,540 REFUNDED" : "Queued"}
-              </span>
+          <div className="flex items-center gap-3">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
+              reconciled ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700 animate-pulse"
+            }`}>
+              {reconciled ? "✓" : "2"}
+            </div>
+            <div>
+              <span className="font-bold text-slate-800">2. Automatic Bank Reconciliation</span>
+              <p className="text-[11px] text-slate-400">
+                {reconciled ? "Reconciled with RBI clearing switch" : "In-process (usually < 2 minutes)"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
+              reconciled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
+            }`}>
+              {reconciled ? "✓" : "3"}
+            </div>
+            <div>
+              <span className="font-bold text-slate-800">3. 100% Refund Credited</span>
+              <p className="text-[11px] text-slate-400">
+                {reconciled ? "Refund UTR: RBIP_9402819024 (Credited to UPI VPA)" : "Will credit to original payment method"}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Action Controls: What to do next */}
-        <div className="flex flex-col gap-2">
-          {!reconciled ? (
+        {/* Actions */}
+        <div className="flex gap-2 pt-2 border-t border-slate-100">
+          {!reconciled && (
             <button
-              onClick={handleInstantReconcile}
+              type="button"
               disabled={isReconciling}
-              className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20"
+              onClick={handleInstantReconcile}
+              className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition cursor-pointer"
             >
-              {isReconciling ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                  <span>Reconciling with Bank Switch...</span>
-                </>
-              ) : (
-                <>
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Execute Instant Auto-Refund Check</span>
-                </>
-              )}
+              {isReconciling ? "Reconciling..." : "Trigger Instant Check"}
             </button>
-          ) : (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center text-xs text-emerald-300 font-bold">
-              ✓ Refund successfully processed. Amount credited to source VPA/Card.
-            </div>
           )}
 
           <button
+            type="button"
             onClick={onRetryWithBackup}
-            className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/25"
+            className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <span>Retry with Backup Gateway (Seat Still Held!)</span>
-            <ArrowRight className="w-4 h-4" />
+            <span>Retry with Backup Gateway (Seats Kept)</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -172,4 +176,3 @@ export const AutoRefundTracker: React.FC<AutoRefundTrackerProps> = ({
 };
 
 export default AutoRefundTracker;
-

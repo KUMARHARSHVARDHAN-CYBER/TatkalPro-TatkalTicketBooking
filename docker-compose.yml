@@ -69,3 +69,4 @@ volumes:
 networks:
   tatkal_net:
     driver: bridge
+

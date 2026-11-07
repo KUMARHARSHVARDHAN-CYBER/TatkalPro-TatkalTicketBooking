@@ -7,7 +7,7 @@ export type Language = "en" | "hi" | "hinglish";
 export const translations = {
   en: {
     appTitle: "TatkalPro",
-    officialBadge: "CRIS / IRCTC Pattern",
+    officialBadge: "Standard Railway Pattern",
     simulatedBanner: "Demo / Simulated Data Mode — Safe Sandbox Environment",
     tatkalOpensIn: "Tatkal opens in",
     acWindow: "AC Tatkal (10:00 AM)",
@@ -72,7 +72,7 @@ export const translations = {
   },
   hi: {
     appTitle: "तत्काल प्रो",
-    officialBadge: "भारतीय रेल पैटर्न",
+    officialBadge: "मानक भारतीय रेल पैटर्न",
     simulatedBanner: "डेमो / सिम्युलेटेड डेटा मोड — सुरक्षित सैंडबॉक्स",
     tatkalOpensIn: "तत्काल खुलने में समय:",
     acWindow: "एसी तत्काल (सुबह 10:00 बजे)",
@@ -137,7 +137,7 @@ export const translations = {
   },
   hinglish: {
     appTitle: "TatkalPro",
-    officialBadge: "IRCTC Style Next-Gen",
+    officialBadge: "Standard Next-Gen",
     simulatedBanner: "Simulated Data Mode — 100% Safe Demo",
     tatkalOpensIn: "Tatkal khulne mein time:",
     acWindow: "AC Tatkal (10:00 AM)",

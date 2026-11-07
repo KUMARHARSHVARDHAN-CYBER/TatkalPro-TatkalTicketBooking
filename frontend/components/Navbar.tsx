@@ -60,10 +60,10 @@ export const Navbar: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg sm:text-xl font-extrabold tracking-tight text-white font-sans">
-                  IRCTC <span className="text-orange-500 font-black">NEXT</span>
+                  TatkalPro <span className="text-orange-500 font-black">NEXT</span>
                 </span>
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-400 border border-orange-500/20 uppercase tracking-widest">
-                  <ShieldCheck className="w-3 h-3 text-orange-400" /> Official Partner
+                  <ShieldCheck className="w-3 h-3 text-orange-400" /> Demo build
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 hidden sm:block font-medium">
@@ -112,7 +112,7 @@ export const Navbar: React.FC = () => {
               </div>
               <div className="hidden sm:block text-left">
                 <p className="text-xs font-bold text-white leading-tight">Harshvardhan</p>
-                <p className="text-[10px] text-emerald-400 font-mono leading-tight">IRCTC Verified</p>
+                <p className="text-[10px] text-emerald-400 font-mono leading-tight">Demo Verified</p>
               </div>
             </motion.div>
           </div>
