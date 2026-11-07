@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { railwayProvider } from "@/lib/railway/adapter";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 15;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const pnr = searchParams.get("pnr") || "";

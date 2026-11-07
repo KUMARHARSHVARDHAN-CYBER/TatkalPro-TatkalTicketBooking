@@ -654,9 +654,13 @@ export default function TatkalProMainPage() {
         holdToken: activeHoldToken,
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
       const res = await fetch("/api/booking/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           holdToken: activeHoldToken,
           draft,
@@ -664,16 +668,21 @@ export default function TatkalProMainPage() {
         }),
       });
 
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (data.success && data.data) {
         setConfirmedBooking(data.data);
         setCurrentStep("TICKET");
         setShowETicketModal(true);
       } else {
-        alert(data.error?.message || "Failed to confirm booking");
+        alert(data.error?.message || "Failed to confirm booking. Please try again.");
       }
-    } catch {
-      alert("Error confirming booking");
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        alert("Booking confirmation request timed out. Please verify your PNR or try again.");
+      } else {
+        alert("Error confirming booking. Please try again.");
+      }
     }
   };
 

@@ -38,16 +38,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [shouldSimulateFailure, setShouldSimulateFailure] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeGateway, setActiveGateway] = useState<"RAZORPAY_MOCK" | "PAYU_MOCK">("RAZORPAY_MOCK");
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handlePay = async () => {
     setIsProcessing(true);
+    setPaymentError(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
       const res = await fetch("/api/payment/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           amount: totalAmount,
           method: selectedMethod,
@@ -56,6 +62,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         }),
       });
 
+      clearTimeout(timeoutId);
       const data = await res.json();
       setIsProcessing(false);
 
@@ -70,7 +77,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         // Gateway Timeout Fallback trigger
         if (activeGateway === "RAZORPAY_MOCK") {
           setActiveGateway("PAYU_MOCK");
-          alert("Primary Payment Gateway timed out. Auto-switched to Backup RailPay Gateway without releasing your seat hold.");
+          setPaymentError("Primary Payment Gateway timed out. Auto-switched to Backup RailPay Gateway without releasing your seat hold. Tap Pay to try again.");
         } else {
           onPaymentFailureSimulated({
             transactionId: `tx_failed_${Date.now()}`,
@@ -85,19 +92,28 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           });
         }
       }
-    } catch {
+    } catch (err: any) {
+      clearTimeout(timeoutId);
       setIsProcessing(false);
-      onPaymentFailureSimulated({
-        transactionId: `tx_failed_${Date.now()}`,
-        orderId: `order_${Date.now()}`,
-        amount: totalAmount,
-        currency: "INR",
-        status: "FAILED",
-        gateway: activeGateway,
-        method: selectedMethod,
-        failureReason: "Network connectivity dropped during transaction.",
-        createdAt: new Date().toISOString(),
-      });
+      const isTimeout = err?.name === "AbortError";
+      if (activeGateway === "RAZORPAY_MOCK") {
+        setActiveGateway("PAYU_MOCK");
+        setPaymentError("Payment gateway request timed out after 8s. Auto-switched to Backup RailPay Gateway. Tap Pay to try again.");
+      } else {
+        onPaymentFailureSimulated({
+          transactionId: `tx_failed_${Date.now()}`,
+          orderId: `order_${Date.now()}`,
+          amount: totalAmount,
+          currency: "INR",
+          status: "FAILED",
+          gateway: activeGateway,
+          method: selectedMethod,
+          failureReason: isTimeout
+            ? "Bank OTP Timeout (Gateway did not respond within 8 seconds)."
+            : "Network connectivity dropped during transaction.",
+          createdAt: new Date().toISOString(),
+        });
+      }
     }
   };
 
@@ -130,6 +146,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Retry Banner on Gateway Fallback / Timeout */}
+        {paymentError && (
+          <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2">
+            <span>{paymentError}</span>
+            <button
+              type="button"
+              onClick={() => handlePay()}
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-600 text-white font-bold text-xs hover:bg-amber-700 transition cursor-pointer"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
         {/* Payment Tabs: UPI, Card, Netbanking, Wallet */}
         <div className="grid grid-cols-4 gap-2 mb-4">

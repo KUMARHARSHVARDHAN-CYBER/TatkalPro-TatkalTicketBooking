@@ -524,12 +524,6 @@ export class MockRailwayAdapter implements IRailwayProvider {
     };
 
     activeHolds.set(holdToken, hold);
-
-    // Auto cleanup after expiration
-    setTimeout(() => {
-      activeHolds.delete(holdToken);
-    }, ttlSeconds * 1000);
-
     return hold;
   }
 
@@ -550,9 +544,28 @@ export class MockRailwayAdapter implements IRailwayProvider {
   }): Promise<BookingRecord> {
     const { holdToken, draft, payment } = params;
 
-    // Verify hold validity
-    const hold = activeHolds.get(holdToken);
-    if (!hold && process.env.NODE_ENV === "production") {
+    // Stateless seat hold verification: checks TTL if hold has timestamp, or checks in-memory hold if present
+    let isExpired = false;
+    if (holdToken) {
+      if (activeHolds.has(holdToken)) {
+        const memoryHold = activeHolds.get(holdToken)!;
+        if (memoryHold.expiresAt && Date.now() > memoryHold.expiresAt) {
+          isExpired = true;
+          activeHolds.delete(holdToken);
+        }
+      } else if (holdToken.startsWith("hold_")) {
+        const parts = holdToken.split("_");
+        const tokenTime = parseInt(parts[1], 10);
+        // Valid timestamp older than 8 minutes (480,000ms) is expired
+        if (!isNaN(tokenTime) && tokenTime > 1000000000000) {
+          if (Date.now() - tokenTime > 8 * 60 * 1000) {
+            isExpired = true;
+          }
+        }
+      }
+    }
+
+    if (isExpired) {
       throw new Error("Seat hold has expired. Please select your seats again.");
     }
 

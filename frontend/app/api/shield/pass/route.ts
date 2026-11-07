@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { botShieldService } from "@/lib/railway/botShield";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

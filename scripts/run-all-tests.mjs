@@ -17,6 +17,7 @@ const suites = [
   { name: "Train Results & Nav Enhancements", file: "tests/results-and-nav-enhancements.test.ts" },
   { name: "Home Hero, Results & Info Sections", file: "tests/home-hero-and-results-enhancements.test.ts" },
   { name: "Pre-Deployment Cleanup Verification", file: "tests/pre-deployment-cleanup.test.ts" },
+  { name: "Vercel Serverless Stateless Resilience", file: "tests/vercel-serverless-resilience.test.ts" },
 ];
 
 for (const suite of suites) {
@@ -30,6 +31,6 @@ for (const suite of suites) {
 }
 
 console.log("=======================================================");
-console.log("   ✅ ALL 9 TATKALPRO TEST SUITES PASSED!             ");
+console.log("   ✅ ALL 10 TATKALPRO TEST SUITES PASSED!            ");
 console.log("=======================================================\n");
 process.exit(0);

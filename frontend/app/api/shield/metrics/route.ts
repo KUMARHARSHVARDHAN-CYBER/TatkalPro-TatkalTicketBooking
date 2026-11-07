@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { botShieldService } from "@/lib/railway/botShield";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function GET() {
   const metrics = botShieldService.getTelemetryMetrics();
   return NextResponse.json({

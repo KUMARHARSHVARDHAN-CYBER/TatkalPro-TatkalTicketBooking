@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { railwayProvider } from "@/lib/railway/adapter";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 15;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

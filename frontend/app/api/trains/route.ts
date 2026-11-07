@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { railwayProvider } from "@/lib/railway/adapter";
 import { QuotaCode } from "@/lib/railway/types";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from") || "NDLS";

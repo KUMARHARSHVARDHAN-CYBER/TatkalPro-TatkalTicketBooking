@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function GET() {
   // Generate random 5-character alphanumeric captcha excluding ambiguous chars (0, O, 1, I)
   const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
