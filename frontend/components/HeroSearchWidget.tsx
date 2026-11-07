@@ -20,7 +20,6 @@ import { Button } from "./ui/Button";
 import { QuotaChip } from "./ui/Chips";
 import { ClassSelectBottomSheet } from "./ui/ClassSelectBottomSheet";
 import { formatDisplayDate } from "../lib/dateUtils";
-import { POPULAR_ROUTES, PopularRoute } from "../lib/popularRoutes";
 
 interface HeroSearchWidgetProps {
   onSearch: (params: SearchQueryParams) => void;
@@ -93,20 +92,6 @@ export const HeroSearchWidget: React.FC<HeroSearchWidgetProps> = ({
     const temp = fromCode;
     setFromCode(toCode);
     setToCode(temp);
-  };
-
-  // Tapping popular route fills inputs and focuses search button without auto-searching
-  const handleSelectPopularRoute = (route: typeof POPULAR_ROUTES[0]) => {
-    setFromCode(route.fromCode);
-    setToCode(route.toCode);
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    setJourneyDate(d.toISOString().split("T")[0]);
-    setIsFromOpen(false);
-    setIsToOpen(false);
-    setTimeout(() => {
-      searchButtonRef.current?.focus();
-    }, 50);
   };
 
   // Filtered stations for autosuggest
@@ -524,35 +509,6 @@ export const HeroSearchWidget: React.FC<HeroSearchWidgetProps> = ({
                   </div>
                 </div>
               </form>
-            </div>
-
-            {/* Popular Routes Section inside the Hero */}
-            <div className="w-full max-w-5xl mt-3 sm:mt-4 flex flex-col gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-slate-300 font-semibold px-1">
-                <MapPin className="w-3.5 h-3.5 text-orange-400" />
-                <span>Popular Routes (Simulated Fares):</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {POPULAR_ROUTES.map((route) => (
-                  <button
-                    key={`${route.fromCode}-${route.toCode}`}
-                    type="button"
-                    onClick={() => handleSelectPopularRoute(route)}
-                    className="min-h-[44px] px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-white border border-white/20 hover:border-orange-400/70 backdrop-blur-md transition-all flex items-center gap-2 text-xs font-semibold cursor-pointer shadow-xs focus:outline-hidden focus:ring-2 focus:ring-orange-400"
-                    aria-label={`Select popular route ${route.fromCode} to ${route.toCode}, from ₹${route.minFare}`}
-                  >
-                    <span className="font-bold text-white tracking-wide">
-                      {route.fromCode} → {route.toCode}
-                    </span>
-                    <span className="text-orange-300 font-mono text-[11px] font-bold">
-                      from ₹{route.minFare}
-                    </span>
-                    <span className="text-[9px] uppercase px-1.5 py-0.2 rounded-full bg-white/10 text-slate-300 border border-white/10">
-                      simulated
-                    </span>
-                  </button>
-                ))}
-              </div>
             </div>
           </>
         )}

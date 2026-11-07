@@ -2,8 +2,6 @@ import fs from "fs";
 import path from "path";
 import process from "node:process";
 import defaultRules from "../frontend/lib/safetyNet/defaultRules.json";
-import { POPULAR_ROUTES } from "../frontend/lib/popularRoutes";
-import { TRAINS } from "../frontend/lib/railway/data";
 
 console.log("=======================================================");
 console.log("   🌟 HOME HERO, RESULTS & INFO SECTIONS TEST SUITE   ");
@@ -24,41 +22,14 @@ function assert(condition: boolean, testName: string, detail?: string) {
 }
 
 // -------------------------------------------------------------
-// 1. Popular Route Chips in Hero
+// 1. Popular Route Bar Clean Removal
 // -------------------------------------------------------------
-console.log("▶ [1/5] Popular Route Chips in Hero");
+console.log("▶ [1/5] Popular Route Bar Clean Removal");
 {
-  assert(POPULAR_ROUTES.length >= 4, `Provides ${POPULAR_ROUTES.length} popular routes (>= 4)`);
-
-  // Verify every route exists in mock data
-  for (const route of POPULAR_ROUTES) {
-    const matchingTrains = TRAINS.filter(
-      (t) => t.fromStation.code === route.fromCode && t.toStation.code === route.toCode
-    );
-    assert(
-      matchingTrains.length > 0,
-      `Route ${route.fromCode} -> ${route.toCode} exists in railway mock schedules (${matchingTrains.length} trains)`
-    );
-
-    if (matchingTrains.length > 0) {
-      const allFares = matchingTrains.flatMap((t) =>
-        Object.values(t.classes).flatMap((clsList: any) =>
-          clsList.map((c: any) => c.totalFare)
-        )
-      );
-      const minActual = Math.min(...allFares);
-      assert(
-        route.minFare === minActual,
-        `Route ${route.fromCode} -> ${route.toCode} advertised starting fare ₹${route.minFare} exactly matches mock lowest fare ₹${minActual}`
-      );
-    }
-  }
-
   const heroCode = fs.readFileSync("frontend/components/HeroSearchWidget.tsx", "utf8");
-  assert(heroCode.includes("from ₹"), "Popular route chips show 'from ₹X' fare format");
-  assert(heroCode.includes("simulated"), "Popular route chips explicitly labelled as 'simulated'");
-  assert(heroCode.includes("min-h-[44px]"), "Popular route chips enforce WCAG AA 44px touch targets");
-  assert(heroCode.includes("searchButtonRef.current?.focus()"), "Selecting route focuses 'Search trains' without auto-searching");
+  assert(!heroCode.includes("Popular Routes (Simulated Fares):"), "Popular route bar removed from hero UI");
+  assert(!heroCode.includes("handleSelectPopularRoute"), "handleSelectPopularRoute removed from hero");
+  assert(!heroCode.includes("POPULAR_ROUTES"), "POPULAR_ROUTES not rendered in hero search widget");
 }
 
 // -------------------------------------------------------------
