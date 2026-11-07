@@ -29,36 +29,6 @@ TatkalPro features a clean, high-contrast, professional light-theme design syste
 
 ---
 
-## 🏗️ System Architecture
-
-```mermaid
-flowchart TD
-    Client["Client PWA (Mobile/Desktop)\nLight Theme + Low-Bandwidth Mode"] -->|Search / Hold / Pay / Confirm| API["Next.js App Router API Routes\n(/api/trains, /api/booking, /api/shield)"]
-    
-    API --> BotShield["Bot Shield Defensive Engine\n(Signed Passes, Sliding Rate Limits, Risk Scoring)"]
-    BotShield --> Adapter["IRailwayProvider Adapter Contract\n(MockRailwayAdapter / In-Memory GDS)"]
-    
-    subgraph Concurrency & Hold Layer
-        Adapter -->|1. Hold Seats (480s TTL)| Redis["Redis In-Memory Engine\n(Atomic Lua Lock & Counter)"]
-        Redis -->|Atomic Check| Seats{"Seats >= Req?"}
-        Seats -->|Yes| LockToken["Generate holdToken\n(8-Minute Seat Reservation)"]
-        Seats -->|No| Waitlist["409 Conflict\nSEAT_UNAVAILABLE"]
-    end
-    
-    subgraph Dijkstra Split-Ticket Engine
-        Adapter -->|Direct Quota Full| Dijkstra["Dijkstra Graph Routing Engine\n(Evaluates Intermediate Junctions)"]
-        Dijkstra --> SplitResult["Confirmed Leg 1 + Leg 2\nSafe Platform Layover (30-240m)"]
-    end
-
-    subgraph Resilient Checkout & Anti-Loss
-        Adapter --> Captcha["Accessible Audio & Visual Captcha\n(Zero Form Data Loss on Retry)"]
-        Captcha --> PaymentGateway["Multi-Gateway Switch\n(UPI QR / Intent / Cards / Netbanking)"]
-        PaymentGateway -->|Gateway Failure| Fallback["Auto-Fallback Secondary RailPay Gateway"]
-        PaymentGateway -->|Money Deducted but Failed| ReconEngine["Auto-Refund Reconciliation Engine\n(Instant RBI UTR in < 2 Mins)"]
-        PaymentGateway -->|Payment Success| PNRConfirm["Issue 10-Digit Demo PNR\nCoach & Berth Allocation"]
-    end
-```
-
 ---
 
 ## 🛡️ How Bot Shield Works
