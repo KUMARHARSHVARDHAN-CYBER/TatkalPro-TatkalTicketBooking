@@ -214,45 +214,6 @@ function findSplitRouteBFS(source: string, destination: string): SplitRouteResul
   };
 }
 
-/**
- * Creates a minimal valid 16-bit PCM WAV audio buffer as an offline fallback.
- */
-function createSilentWavBase64(durationSeconds = 1): string {
-  const sampleRate = 48000;
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const bytesPerSample = bitsPerSample / 8;
-  const blockAlign = numChannels * bytesPerSample;
-  const byteRate = sampleRate * blockAlign;
-  const numSamples = sampleRate * durationSeconds;
-  const subChunk2Size = numSamples * blockAlign;
-  const chunkSize = 36 + subChunk2Size;
-
-  const buffer = Buffer.alloc(44 + subChunk2Size);
-  buffer.write("RIFF", 0);
-  buffer.writeUInt32LE(chunkSize, 4);
-  buffer.write("WAVE", 8);
-  buffer.write("fmt ", 12);
-  buffer.writeUInt32LE(16, 16); // SubChunk1Size (16 for PCM)
-  buffer.writeUInt16LE(1, 20); // AudioFormat (1 for PCM)
-  buffer.writeUInt16LE(numChannels, 22);
-  buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(byteRate, 28);
-  buffer.writeUInt16LE(blockAlign, 32);
-  buffer.writeUInt16LE(bitsPerSample, 34);
-  buffer.write("data", 36);
-  buffer.writeUInt32LE(subChunk2Size, 40);
-
-  // Generate a soft gentle tone
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    const sample = Math.sin(2 * Math.PI * 440 * t) * 0.1 * 32767;
-    buffer.writeInt16LE(Math.floor(sample), 44 + i * 2);
-  }
-
-  return buffer.toString("base64");
-}
-
 // ==============================================================================
 // Step 1: POST Handler for /api/voice-agent
 // ==============================================================================
@@ -332,50 +293,43 @@ export async function POST(request: NextRequest) {
     // --------------------------------------------------------------------------
     // C. Gnani Timbre (Text-to-Speech)
     // --------------------------------------------------------------------------
-    let audio_base64 = "";
-
-    if (gnaniApiKey) {
-      try {
-        const timbrePayload = {
-          text: responseString,
-          voice: "Nalini",
-          model: "timbre-v2.5",
-          language: "en-IN",
-          speed: 1.0,
-          audio_config: {
-            sample_rate: 48000,
-            num_channels: 1,
-            sample_width: 2,
-            encoding: "linear_pcm",
-            container: "wav",
-          },
-        };
-
-        const ttsRes = await fetch("https://api.vachana.ai/api/v1/tts/inference", {
-          method: "POST",
-          headers: {
-            "X-API-Key-ID": gnaniApiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(timbrePayload),
-        });
-
-        if (ttsRes.ok) {
-          const audioArrayBuffer = await ttsRes.arrayBuffer();
-          audio_base64 = Buffer.from(audioArrayBuffer).toString("base64");
-        } else {
-          const ttsErr = await ttsRes.text().catch(() => "");
-          console.warn("Gnani Timbre TTS non-200 response:", ttsRes.status, ttsErr);
-        }
-      } catch (ttsErr: any) {
-        console.warn("Gnani Timbre TTS network/exception:", ttsErr.message);
-      }
+    if (!gnaniApiKey) {
+      console.error("Gnani Timbre Error: Missing GNANI_API_KEY");
+      return NextResponse.json({ error: "TTS Failed: Missing GNANI_API_KEY" }, { status: 500 });
     }
 
-    // If audio_base64 is still empty (e.g. offline testing or network timeout), provide clean WAV audio
-    if (!audio_base64) {
-      audio_base64 = createSilentWavBase64(2);
+    const timbrePayload = {
+      text: responseString,
+      voice: "Nalini",
+      model: "timbre-v2.5",
+      language: "en-IN",
+      speed: 1.0,
+      audio_config: {
+        sample_rate: 48000,
+        num_channels: 1,
+        sample_width: 2,
+        encoding: "linear_pcm",
+        container: "wav",
+      },
+    };
+
+    const timbreResponse = await fetch("https://api.vachana.ai/api/v1/tts/inference", {
+      method: "POST",
+      headers: {
+        "X-API-Key-ID": gnaniApiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(timbrePayload),
+    });
+
+    if (!timbreResponse.ok) {
+      const errText = await timbreResponse.text();
+      console.error("Gnani Timbre Error:", errText);
+      return NextResponse.json({ error: "TTS Failed: " + errText }, { status: 500 });
     }
+
+    const arrayBuffer = await timbreResponse.arrayBuffer();
+    const audio_base64 = Buffer.from(arrayBuffer).toString("base64");
 
     // Return the exact JSON payload specified:
     // { ui_state: { route: 'split', layover: 'Kota' }, audio_base64 }

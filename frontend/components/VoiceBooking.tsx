@@ -96,17 +96,13 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
       }
-      const audio = new Audio(`data:audio/wav;base64,${audioBase64}`);
+      const audio = new Audio("data:audio/wav;base64," + audioBase64);
+      audio.play();
       currentAudioRef.current = audio;
 
       setIsPlayingAudio(true);
       audio.onended = () => setIsPlayingAudio(false);
       audio.onerror = () => setIsPlayingAudio(false);
-
-      audio.play().catch((err) => {
-        console.warn("Autoplay was blocked or failed:", err);
-        setIsPlayingAudio(false);
-      });
     } catch (err) {
       console.error("HTML5 Audio playback error:", err);
       setIsPlayingAudio(false);
@@ -198,21 +194,31 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
         body: formData,
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setIsProcessing(false);
 
-      if (data.success) {
+      if (res.ok && data.audio_base64) {
         setTranscript(data.transcript || "Find trains from Delhi to Mumbai");
         setAgentResponse(data.response_text || data.ui_state?.message || null);
         setUiState(data.ui_state || { route: "split", layover: "Kota" });
+        setLastAudioBase64(data.audio_base64);
 
-        if (data.audio_base64) {
-          setLastAudioBase64(data.audio_base64);
-          // Play audio using HTML5 Audio constructor per requirement
-          playBase64Audio(data.audio_base64);
+        if (currentAudioRef.current) {
+          currentAudioRef.current.pause();
         }
+        const audio = new Audio("data:audio/wav;base64," + data.audio_base64);
+        audio.play();
+        currentAudioRef.current = audio;
+
+        setIsPlayingAudio(true);
+        audio.onended = () => setIsPlayingAudio(false);
+        audio.onerror = () => setIsPlayingAudio(false);
       } else {
-        setErrorMessage(data.error?.message || "Failed to process voice request.");
+        const errMessage =
+          typeof data.error === "string"
+            ? data.error
+            : data.error?.message || data.message || "Failed to process voice request.";
+        setErrorMessage(errMessage);
       }
     } catch (err: any) {
       setIsProcessing(false);
