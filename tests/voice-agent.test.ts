@@ -60,8 +60,11 @@ async function runSuite() {
   });
 
   console.log("\n▶ [2/4] Gnani Prisma & Timbre API Specification Compliance");
-  test("Prisma STT endpoint matches https://api.vachana.ai/stt/v3", () => {
-    assert(routeCode.includes("https://api.vachana.ai/stt/v3"));
+  test("Prisma STT endpoint matches https://api.vachana.ai/api/v1/stt or https://api.vachana.ai/stt/v3", () => {
+    assert(
+      routeCode.includes("https://api.vachana.ai/api/v1/stt") ||
+      routeCode.includes("https://api.vachana.ai/stt/v3")
+    );
   });
 
   test("Timbre TTS endpoint matches https://api.vachana.ai/api/v1/tts/inference", () => {

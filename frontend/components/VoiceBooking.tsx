@@ -96,13 +96,17 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
       }
-      const audio = new Audio("data:audio/wav;base64," + audioBase64);
-      audio.play();
+      const audio = new Audio(`data:audio/wav;base64,${audioBase64}`);
       currentAudioRef.current = audio;
 
       setIsPlayingAudio(true);
       audio.onended = () => setIsPlayingAudio(false);
       audio.onerror = () => setIsPlayingAudio(false);
+
+      audio.play().catch((err) => {
+        console.warn("Autoplay was blocked or failed:", err);
+        setIsPlayingAudio(false);
+      });
     } catch (err) {
       console.error("HTML5 Audio playback error:", err);
       setIsPlayingAudio(false);
@@ -148,7 +152,7 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
         stream.getTracks().forEach((track) => track.stop());
 
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/wav",
+          type: mimeType || "audio/wav",
         });
 
         await submitVoicePayload(audioBlob);
@@ -183,9 +187,8 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
     try {
       const formData = new FormData();
       if (audioBlob) {
-        // Explicitly name the file 'recording.wav' so the API accepts it
-        formData.append("file", audioBlob, "recording.wav");
-        formData.append("audio_file", audioBlob, "recording.wav");
+        formData.append("file", audioBlob, "user_speech.wav");
+        formData.append("audio_file", audioBlob, "user_speech.wav");
       }
       if (fallbackText) {
         formData.append("text", fallbackText);
@@ -196,31 +199,21 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
         body: formData,
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
       setIsProcessing(false);
 
-      if (res.ok && data.audio_base64) {
+      if (data.success) {
         setTranscript(data.transcript || "Find trains from Delhi to Mumbai");
         setAgentResponse(data.response_text || data.ui_state?.message || null);
         setUiState(data.ui_state || { route: "split", layover: "Kota" });
-        setLastAudioBase64(data.audio_base64);
 
-        if (currentAudioRef.current) {
-          currentAudioRef.current.pause();
+        if (data.audio_base64) {
+          setLastAudioBase64(data.audio_base64);
+          // Play audio using HTML5 Audio constructor per requirement
+          playBase64Audio(data.audio_base64);
         }
-        const audio = new Audio("data:audio/wav;base64," + data.audio_base64);
-        audio.play();
-        currentAudioRef.current = audio;
-
-        setIsPlayingAudio(true);
-        audio.onended = () => setIsPlayingAudio(false);
-        audio.onerror = () => setIsPlayingAudio(false);
       } else {
-        const errMessage =
-          typeof data.error === "string"
-            ? data.error
-            : data.error?.message || data.message || "Failed to process voice request.";
-        setErrorMessage(errMessage);
+        setErrorMessage(data.error?.message || data.details || data.error || "Failed to process voice request.");
       }
     } catch (err: any) {
       setIsProcessing(false);
