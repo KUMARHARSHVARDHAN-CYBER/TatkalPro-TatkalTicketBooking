@@ -46,6 +46,72 @@ interface UIState {
   };
 }
 
+/**
+ * Converts a decoded Web Audio API AudioBuffer into a 16-bit PCM WAV Blob with standard 44-byte RIFF/WAVE header.
+ */
+function audioBufferToWav(buffer: AudioBuffer): Blob {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // 1 = PCM
+  const bitDepth = 16;
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+
+  const numSamples = buffer.length;
+  const dataByteLength = numSamples * blockAlign;
+  const headerByteLength = 44;
+  const totalLength = headerByteLength + dataByteLength;
+
+  const arrayBuffer = new ArrayBuffer(totalLength);
+  const view = new DataView(arrayBuffer);
+
+  const writeString = (offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  };
+
+  // 1. "RIFF" chunk descriptor
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + dataByteLength, true); // ChunkSize
+  writeString(8, "WAVE");
+
+  // 2. "fmt " sub-chunk
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+  view.setUint16(20, format, true); // AudioFormat (1 for PCM)
+  view.setUint16(22, numChannels, true); // NumChannels
+  view.setUint32(24, sampleRate, true); // SampleRate
+  view.setUint32(28, sampleRate * blockAlign, true); // ByteRate
+  view.setUint16(32, blockAlign, true); // BlockAlign
+  view.setUint16(34, bitDepth, true); // BitsPerSample
+
+  // 3. "data" sub-chunk
+  writeString(36, "data");
+  view.setUint32(40, dataByteLength, true); // Subchunk2Size
+
+  // 4. Interleave channel data and convert float (-1.0 to 1.0) to 16-bit signed PCM integers
+  const channels: Float32Array[] = [];
+  for (let c = 0; c < numChannels; c++) {
+    channels.push(buffer.getChannelData(c));
+  }
+
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    for (let c = 0; c < numChannels; c++) {
+      let sample = channels[c][i];
+      // Clamp between -1.0 and 1.0
+      sample = Math.max(-1, Math.min(1, sample));
+      // Scale to 16-bit integer range
+      const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+      view.setInt16(offset, intSample, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([view], { type: "audio/wav" });
+}
+
 export const VoiceBooking: React.FC<VoiceBookingProps> = ({
   isOpen = true,
   onClose,
@@ -151,10 +217,32 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
         // Stop audio tracks on stream to release microphone
         stream.getTracks().forEach((track) => track.stop());
 
-        // 1. Force the blob to be explicitly recognized as a WebM audio file
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        try {
+          // 1. Read audioChunks into an ArrayBuffer
+          const rawBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          const arrayBuffer = await rawBlob.arrayBuffer();
 
-        await submitVoicePayload(audioBlob);
+          // 2. Decode WebM buffer using browser AudioContext
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            const audioCtx = new AudioContextClass();
+            const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
+
+            // 3. Convert decoded AudioBuffer into a proper 16-bit PCM WAV Blob with 44-byte RIFF header
+            const wavBlob = audioBufferToWav(decodedAudio);
+            await audioCtx.close().catch(() => {});
+
+            await submitVoicePayload(wavBlob);
+            return;
+          }
+
+          // Fallback if AudioContext is unavailable
+          await submitVoicePayload(rawBlob);
+        } catch (convErr) {
+          console.warn("Audio conversion error, falling back:", convErr);
+          const fallbackBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          await submitVoicePayload(fallbackBlob);
+        }
       };
 
       mediaRecorder.start(250); // Slice every 250ms
@@ -186,9 +274,9 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
     try {
       const formData = new FormData();
       if (audioBlob) {
-        // 2. Append it to the form data with a .webm extension!
-        formData.append("file", audioBlob, "recording.webm");
-        formData.append("audio_file", audioBlob, "recording.webm");
+        // Append newly created WAV Blob
+        formData.append("file", audioBlob, "recording.wav");
+        formData.append("audio_file", audioBlob, "recording.wav");
       }
       if (fallbackText) {
         formData.append("text", fallbackText);
