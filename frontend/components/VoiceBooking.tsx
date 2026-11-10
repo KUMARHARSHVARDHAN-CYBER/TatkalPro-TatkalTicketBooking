@@ -151,9 +151,8 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
         // Stop audio tracks on stream to release microphone
         stream.getTracks().forEach((track) => track.stop());
 
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: mimeType || "audio/wav",
-        });
+        // 1. Force the blob to be explicitly recognized as a WebM audio file
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
 
         await submitVoicePayload(audioBlob);
       };
@@ -187,8 +186,9 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
     try {
       const formData = new FormData();
       if (audioBlob) {
-        formData.append("file", audioBlob, "user_speech.wav");
-        formData.append("audio_file", audioBlob, "user_speech.wav");
+        // 2. Append it to the form data with a .webm extension!
+        formData.append("file", audioBlob, "recording.webm");
+        formData.append("audio_file", audioBlob, "recording.webm");
       }
       if (fallbackText) {
         formData.append("text", fallbackText);

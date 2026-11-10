@@ -276,8 +276,9 @@ export async function POST(request: NextRequest) {
     if (file) {
       // 2. Build the EXACT FormData structure Gnani Prisma expects
       const gnaniForm = new FormData();
-      gnaniForm.append("audio_file", file); // MUST be 'audio_file'
-      gnaniForm.append("language_code", "en-IN"); // Mandatory field for Prisma v2.5
+      const fileName = (file as File).name || "recording.webm";
+      gnaniForm.append("audio_file", file, fileName); // 'file' is the webm blob from the frontend
+      gnaniForm.append("language_code", "en-IN");
       gnaniForm.append("model", "prisma-v2.5");
 
       // 3. POST to Prisma
