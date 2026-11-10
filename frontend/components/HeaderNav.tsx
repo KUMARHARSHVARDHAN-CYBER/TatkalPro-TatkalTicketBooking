@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  Train,
   Clock,
   ShieldCheck,
   ShieldAlert,
@@ -85,9 +85,14 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
           className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group select-none shrink-0"
           title="Return to Train Search"
         >
-          <div className="w-10 h-10 rounded-2xl bg-[#0A3D78] text-white flex items-center justify-center shadow-md shadow-blue-900/30 border-2 border-[#05264F] group-hover:bg-[#072F5E] transition">
-            <Train className="w-5 h-5 stroke-[2.5] text-amber-400 group-hover:scale-105 transition-transform" />
-          </div>
+          <Image
+            src="/brand/tatkalpro-mark.png"
+            alt="TatkalPro logo"
+            width={75}
+            height={44}
+            priority
+            className="h-9 sm:h-11 w-auto object-contain shrink-0 group-hover:opacity-95 transition-opacity"
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="text-lg sm:text-xl font-black text-slate-950 tracking-tight group-hover:text-[#0A3D78] transition">
