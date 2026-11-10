@@ -148,7 +148,7 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
         stream.getTracks().forEach((track) => track.stop());
 
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: mimeType || "audio/wav",
+          type: "audio/wav",
         });
 
         await submitVoicePayload(audioBlob);
@@ -183,7 +183,9 @@ export const VoiceBooking: React.FC<VoiceBookingProps> = ({
     try {
       const formData = new FormData();
       if (audioBlob) {
-        formData.append("audio_file", audioBlob, "user_speech.wav");
+        // Explicitly name the file 'recording.wav' so the API accepts it
+        formData.append("file", audioBlob, "recording.wav");
+        formData.append("audio_file", audioBlob, "recording.wav");
       }
       if (fallbackText) {
         formData.append("text", fallbackText);

@@ -230,9 +230,9 @@ export async function POST(request: NextRequest) {
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
-      audioFile = (formData.get("audio_file") ||
-        formData.get("audio") ||
-        formData.get("file")) as Blob | null;
+      audioFile = (formData.get("file") ||
+        formData.get("audio_file") ||
+        formData.get("audio")) as Blob | null;
 
       const textOverride = formData.get("text") as string | null;
       if (textOverride && textOverride.trim()) {
@@ -251,11 +251,13 @@ export async function POST(request: NextRequest) {
     if (!transcription && audioFile && gnaniApiKey) {
       try {
         const prismaForm = new FormData();
-        prismaForm.append("audio_file", audioFile, "audio.wav");
+        prismaForm.append("audio_file", audioFile, "recording.wav");
         prismaForm.append("model", "prisma-v3.0");
         prismaForm.append("language_code", "en-IN");
 
-        const sttRes = await fetch("https://api.vachana.ai/stt/v3", {
+        console.log("1. Sending file to Prisma STT...");
+
+        const prismaResponse = await fetch("https://api.vachana.ai/stt/v3", {
           method: "POST",
           headers: {
             "X-API-Key-ID": gnaniApiKey,
@@ -263,12 +265,13 @@ export async function POST(request: NextRequest) {
           body: prismaForm,
         });
 
-        if (sttRes.ok) {
-          const sttData = await sttRes.json();
-          transcription = sttData?.transcript || sttData?.text || "";
+        console.log("2. Prisma STT Response Status:", prismaResponse.status);
+
+        if (!prismaResponse.ok) {
+          console.error("Prisma Error details:", await prismaResponse.text());
         } else {
-          const errText = await sttRes.text().catch(() => "");
-          console.warn("Gnani Prisma STT non-200 response:", sttRes.status, errText);
+          const sttData = await prismaResponse.json();
+          transcription = sttData?.transcript || sttData?.text || "";
         }
       } catch (sttErr: any) {
         console.warn("Gnani Prisma STT network/exception:", sttErr.message);
@@ -279,6 +282,8 @@ export async function POST(request: NextRequest) {
     if (!transcription || transcription.trim().length === 0) {
       transcription = "Find trains from Delhi to Mumbai in Tatkal quota";
     }
+
+    console.log("3. Prisma output text:", transcription);
 
     // --------------------------------------------------------------------------
     // B. Local Routing Logic (Node.js BFS)
@@ -313,6 +318,8 @@ export async function POST(request: NextRequest) {
       },
     };
 
+    console.log("4. Sending text to Timbre TTS...");
+
     const timbreResponse = await fetch("https://api.vachana.ai/api/v1/tts/inference", {
       method: "POST",
       headers: {
@@ -322,9 +329,11 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(timbrePayload),
     });
 
+    console.log("5. Timbre TTS Response Status:", timbreResponse.status);
+
     if (!timbreResponse.ok) {
-      const errText = await timbreResponse.text();
-      console.error("Gnani Timbre Error:", errText);
+      const errText = await timbreResponse.clone().text().catch(() => "");
+      console.error("Timbre Error details:", await timbreResponse.text());
       return NextResponse.json({ error: "TTS Failed: " + errText }, { status: 500 });
     }
 
