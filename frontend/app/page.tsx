@@ -20,6 +20,7 @@ import { VirtualWaitingRoom } from "../components/VirtualWaitingRoom";
 import { WaitlistPredictorCard } from "../components/WaitlistPredictorCard";
 import { SplitTicketCard } from "../components/SplitTicketCard";
 import { AdminBotShieldDashboard } from "../components/AdminBotShieldDashboard";
+import { VoiceBooking } from "../components/VoiceBooking";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { EmptyState } from "../components/ui/ModalsAndStates";
 import { Button } from "../components/ui/Button";
@@ -73,6 +74,7 @@ import {
   Check,
   GitFork,
   Calendar,
+  Mic,
 } from "lucide-react";
 
 export default function TatkalProMainPage() {
@@ -187,6 +189,7 @@ export default function TatkalProMainPage() {
   const [showPnrModal, setShowPnrModal] = useState<boolean>(false);
   const [showScamModal, setShowScamModal] = useState<boolean>(false);
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
 
   // 8. Tatkal Safety Net States
   const [showRegretShieldSheet, setShowRegretShieldSheet] = useState<boolean>(false);
@@ -1431,6 +1434,52 @@ export default function TatkalProMainPage() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Gnani Voice Assistant Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          type="button"
+          onClick={() => setShowVoiceModal(true)}
+          className="flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-white/20"
+          aria-label="Open Voice Booking Assistant"
+        >
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+          </span>
+          <Mic className="w-4 h-4" />
+          <span>Voice Agent</span>
+        </button>
+      </div>
+
+      {/* Voice Booking Modal (Gnani.ai Prisma STT & Timbre TTS) */}
+      {showVoiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/75 backdrop-blur-xs animate-in fade-in">
+          <div className="fixed inset-0" onClick={() => setShowVoiceModal(false)} />
+          <div className="relative w-full max-w-xl z-10">
+            <VoiceBooking
+              isOpen={showVoiceModal}
+              onClose={() => setShowVoiceModal(false)}
+              onApplyRoute={(from, to) => {
+                setShowVoiceModal(false);
+                const fromStationCode = from.toLowerCase().includes("delhi") ? "NDLS" : from;
+                const toStationCode = to.toLowerCase().includes("mumbai") ? "MMCT" : to;
+                setSearchParams((prev) => ({
+                  ...prev,
+                  fromStation: fromStationCode,
+                  toStation: toStationCode,
+                }));
+                handleSearch({
+                  fromStation: fromStationCode,
+                  toStation: toStationCode,
+                  journeyDate: searchParams.journeyDate,
+                  quota: searchParams.quota,
+                });
+              }}
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   );
