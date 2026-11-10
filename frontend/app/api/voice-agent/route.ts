@@ -224,46 +224,53 @@ export async function POST(request: NextRequest) {
     const gnaniApiKey = rawApiKey.replace(/^["']|["']$/g, "");
 
     let transcription = "";
-    let audioFile: Blob | null = null;
 
-    const contentType = request.headers.get("content-type") || "";
+    // 1. Extract incoming data from the Next.js request
+    const incomingData = await request.formData();
+    const file = incomingData.get("file") || incomingData.get("audio_file"); // Matches what frontend sent
 
-    if (contentType.includes("multipart/form-data")) {
-      const formData = await request.formData();
-      audioFile = (formData.get("file") ||
-        formData.get("audio_file") ||
-        formData.get("audio")) as Blob | null;
+    const textOverride = incomingData.get("text") as string | null;
+    if (textOverride && textOverride.trim()) {
+      transcription = textOverride.trim();
+    }
 
-      const textOverride = formData.get("text") as string | null;
-      if (textOverride && textOverride.trim()) {
-        transcription = textOverride.trim();
-      }
-    } else if (contentType.includes("application/json")) {
-      const jsonBody = await request.json().catch(() => ({}));
-      if (jsonBody.text) {
-        transcription = String(jsonBody.text).trim();
-      }
+    if (!file && !transcription) {
+      return NextResponse.json({ error: "No audio file found in request" }, { status: 400 });
     }
 
     // --------------------------------------------------------------------------
     // A. Gnani Prisma (Speech-to-Text)
     // --------------------------------------------------------------------------
-    if (!transcription && audioFile && gnaniApiKey) {
+    if (!transcription && file) {
       try {
-        const prismaForm = new FormData();
-        prismaForm.append("audio_file", audioFile, "recording.wav");
-        prismaForm.append("model", "prisma-v3.0");
-        prismaForm.append("language_code", "en-IN");
+        // 2. Reconstruct FormData for Gnani
+        const gnaniForm = new FormData();
+        gnaniForm.append("audio_file", file); // Gnani's expected field name for the audio
+        gnaniForm.append("language_code", "en-IN"); // Mandatory field
+        gnaniForm.append("model", "prisma-v2.5");
 
         console.log("1. Sending file to Prisma STT...");
 
-        const prismaResponse = await fetch("https://api.vachana.ai/stt/v3", {
+        // 3. POST to Prisma
+        let prismaResponse = await fetch("https://api.vachana.ai/api/v1/stt", {
           method: "POST",
           headers: {
-            "X-API-Key-ID": gnaniApiKey,
+            "X-API-Key-ID": gnaniApiKey || (process.env.GNANI_API_KEY as string),
+            // DO NOT manually set Content-Type to multipart/form-data. Fetch handles the boundary automatically when passing a FormData object.
           },
-          body: prismaForm,
+          body: gnaniForm,
         });
+
+        // Fallback to https://api.vachana.ai/stt/v3 if api/v1/stt returns 404
+        if (prismaResponse.status === 404) {
+          prismaResponse = await fetch("https://api.vachana.ai/stt/v3", {
+            method: "POST",
+            headers: {
+              "X-API-Key-ID": gnaniApiKey || (process.env.GNANI_API_KEY as string),
+            },
+            body: gnaniForm,
+          });
+        }
 
         console.log("2. Prisma STT Response Status:", prismaResponse.status);
 
