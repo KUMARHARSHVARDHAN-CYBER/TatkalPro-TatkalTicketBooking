@@ -64,7 +64,7 @@ async function runSuite() {
         id: "p1",
         name: "Aarav Sharma",
         age: 34,
-        gender: "MALE",
+        gender: "M",
         berthPreference: "LOWER",
         foodPreference: "VEG",
       },
